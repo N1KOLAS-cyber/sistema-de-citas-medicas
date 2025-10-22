@@ -11,6 +11,9 @@ class UserModel {
   final String? licenseNumber; // Solo para doctores
   final double? rating; // Solo para doctores
   final int? totalAppointments; // Solo para doctores
+  final String? medicalHistory; // Historial médico / enfermedades (para pacientes)
+  final int? age; // Edad del usuario
+  final String? birthplace; // Lugar de nacimiento
 
   UserModel({
     required this.id,
@@ -25,22 +28,41 @@ class UserModel {
     this.licenseNumber,
     this.rating,
     this.totalAppointments,
+    this.medicalHistory,
+    this.age,
+    this.birthplace,
   });
 
   factory UserModel.fromMap(Map<String, dynamic> map) {
+    // Helper para convertir cualquier formato de fecha a DateTime
+    DateTime parseDate(dynamic value) {
+      if (value == null) return DateTime.now();
+      if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
+      if (value is DateTime) return value;
+      // Si es un Timestamp de Firestore
+      try {
+        return (value as dynamic).toDate();
+      } catch (e) {
+        return DateTime.now();
+      }
+    }
+
     return UserModel(
       id: map['id'] ?? '',
       email: map['email'] ?? '',
       name: map['name'] ?? '',
       phone: map['phone'] ?? '',
       profileImage: map['profileImage'],
-      createdAt: DateTime.fromMillisecondsSinceEpoch(map['createdAt'] ?? 0),
-      updatedAt: DateTime.fromMillisecondsSinceEpoch(map['updatedAt'] ?? 0),
+      createdAt: parseDate(map['createdAt']),
+      updatedAt: parseDate(map['updatedAt']),
       isDoctor: map['isDoctor'] ?? false,
       specialty: map['specialty'],
       licenseNumber: map['licenseNumber'],
       rating: map['rating']?.toDouble(),
       totalAppointments: map['totalAppointments'],
+      medicalHistory: map['medicalHistory'],
+      age: map['age'],
+      birthplace: map['birthplace'],
     );
   }
 
@@ -58,6 +80,9 @@ class UserModel {
       'licenseNumber': licenseNumber,
       'rating': rating,
       'totalAppointments': totalAppointments,
+      'medicalHistory': medicalHistory,
+      'age': age,
+      'birthplace': birthplace,
     };
   }
 
@@ -74,6 +99,9 @@ class UserModel {
     String? licenseNumber,
     double? rating,
     int? totalAppointments,
+    String? medicalHistory,
+    int? age,
+    String? birthplace,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -88,6 +116,9 @@ class UserModel {
       licenseNumber: licenseNumber ?? this.licenseNumber,
       rating: rating ?? this.rating,
       totalAppointments: totalAppointments ?? this.totalAppointments,
+      medicalHistory: medicalHistory ?? this.medicalHistory,
+      age: age ?? this.age,
+      birthplace: birthplace ?? this.birthplace,
     );
   }
 }

@@ -52,6 +52,18 @@ class AppointmentModel {
   });
 
   factory AppointmentModel.fromMap(Map<String, dynamic> map) {
+    // Helper para convertir cualquier formato de fecha a DateTime
+    DateTime parseDate(dynamic value) {
+      if (value == null) return DateTime.now();
+      if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
+      if (value is DateTime) return value;
+      try {
+        return (value as dynamic).toDate();
+      } catch (e) {
+        return DateTime.now();
+      }
+    }
+
     return AppointmentModel(
       id: map['id'] ?? '',
       patientId: map['patientId'] ?? '',
@@ -59,7 +71,7 @@ class AppointmentModel {
       patientName: map['patientName'] ?? '',
       doctorName: map['doctorName'] ?? '',
       specialty: map['specialty'] ?? '',
-      appointmentDate: DateTime.fromMillisecondsSinceEpoch(map['appointmentDate'] ?? 0),
+      appointmentDate: parseDate(map['appointmentDate']),
       timeSlot: map['timeSlot'] ?? '',
       status: AppointmentStatus.values.firstWhere(
         (e) => e.name == map['status'],
@@ -74,8 +86,8 @@ class AppointmentModel {
       diagnosis: map['diagnosis'],
       prescription: map['prescription'],
       cost: map['cost']?.toDouble(),
-      createdAt: DateTime.fromMillisecondsSinceEpoch(map['createdAt'] ?? 0),
-      updatedAt: DateTime.fromMillisecondsSinceEpoch(map['updatedAt'] ?? 0),
+      createdAt: parseDate(map['createdAt']),
+      updatedAt: parseDate(map['updatedAt']),
     );
   }
 

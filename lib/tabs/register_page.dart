@@ -1,8 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
-import 'dashboard_page.dart';
+import '../services/firestore_service.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -20,7 +19,6 @@ class _RegisterPageState extends State<RegisterPage> {
   final TextEditingController _confirmPasswordController = TextEditingController();
   
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   
   bool _isDoctor = false;
   String? _selectedSpecialty;
@@ -66,7 +64,7 @@ class _RegisterPageState extends State<RegisterPage> {
       if (userCredential.user != null) {
         Navigator.of(context).pop(); // Cerrar loading INMEDIATAMENTE
         
-        // Crear documento de usuario en Firestore en segundo plano
+        // Crear documento de usuario en Firestore
         UserModel newUser = UserModel(
           id: userCredential.user!.uid,
           email: _emailController.text.trim(),
@@ -81,32 +79,34 @@ class _RegisterPageState extends State<RegisterPage> {
           totalAppointments: _isDoctor ? 0 : null,
         );
 
-        // Intentar guardar en Firestore pero no esperar
-        _firestore
-            .collection('users')
-            .doc(userCredential.user!.uid)
-            .set(newUser.toMap())
-            .catchError((error) {
+        // Usar FirestoreService para guardar en la colección 'usuarios'
+        FirestoreService.createUser(newUser).catchError((error) {
           print('⚠️ Error al guardar en Firestore (no crítico): $error');
         });
 
         // Mostrar mensaje de éxito y regresar al login
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text("¡Registro Exitoso!"),
-            content: const Text("Tu cuenta ha sido creada correctamente. Ahora puedes iniciar sesión."),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop(); // Cerrar diálogo
-                  Navigator.of(context).pop(); // Regresar al login
-                },
-                child: const Text("Iniciar Sesión"),
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text("¡Registro Exitoso!"),
+              content: Text(
+                _isDoctor
+                    ? "¡Bienvenido Dr. ${_nameController.text}!\n\nTu cuenta profesional ha sido creada. Ahora puedes iniciar sesión y gestionar tu disponibilidad."
+                    : "¡Bienvenido ${_nameController.text}!\n\nTu cuenta ha sido creada. Ahora puedes iniciar sesión y agendar citas.",
               ),
-            ],
-          ),
-        );
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop(); // Cerrar diálogo
+                    Navigator.of(context).pop(); // Regresar al login
+                  },
+                  child: const Text("Iniciar Sesión"),
+                ),
+              ],
+            ),
+          );
+        }
       }
     } on FirebaseAuthException catch (e) {
       Navigator.of(context).pop(); // Cerrar loading

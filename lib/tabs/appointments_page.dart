@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/appointment_model.dart';
+import '../models/user_model.dart';
+import 'create_appointment_page.dart';
+import 'messages_page.dart';
 
 class AppointmentsPage extends StatefulWidget {
   const AppointmentsPage({super.key});
@@ -11,7 +15,8 @@ class AppointmentsPage extends StatefulWidget {
 
 class _AppointmentsPageState extends State<AppointmentsPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  String _selectedFilter = 'Todas';
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  String _selectedFilter = 'Todas'; // Por defecto mostrar todas las citas
 
   @override
   Widget build(BuildContext context) {
@@ -30,9 +35,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
             },
             itemBuilder: (context) => [
               const PopupMenuItem(value: 'Todas', child: Text('Todas')),
-              const PopupMenuItem(value: 'Pendientes', child: Text('Pendientes')),
-              const PopupMenuItem(value: 'Confirmadas', child: Text('Confirmadas')),
-              const PopupMenuItem(value: 'Completadas', child: Text('Completadas')),
+              const PopupMenuItem(value: 'Próximas', child: Text('Próximas')),
               const PopupMenuItem(value: 'Canceladas', child: Text('Canceladas')),
             ],
             child: Padding(
@@ -94,11 +97,21 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
               .toList();
 
           // Filtrar citas según el filtro seleccionado
-          if (_selectedFilter != 'Todas') {
+          if (_selectedFilter == 'Próximas') {
+            // Mostrar solo citas futuras (pendientes o confirmadas)
+            DateTime now = DateTime.now();
             appointments = appointments.where((appointment) {
-              return appointment.statusText == _selectedFilter;
+              return appointment.appointmentDate.isAfter(now) &&
+                     (appointment.status == AppointmentStatus.pending ||
+                      appointment.status == AppointmentStatus.confirmed);
+            }).toList();
+          } else if (_selectedFilter == 'Canceladas') {
+            // Mostrar solo citas canceladas
+            appointments = appointments.where((appointment) {
+              return appointment.status == AppointmentStatus.cancelled;
             }).toList();
           }
+          // Si es 'Todas', no filtrar nada
 
           return ListView.builder(
             padding: const EdgeInsets.all(16),
@@ -109,25 +122,83 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // TODO: Implementar crear nueva cita
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("Función de crear cita en desarrollo"),
-            ),
-          );
-        },
-        backgroundColor: Colors.indigo,
-        child: const Icon(Icons.add, color: Colors.white),
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          // Botón de mensajes
+          FloatingActionButton(
+            heroTag: "messages",
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const MessagesPage(),
+                ),
+              );
+            },
+            child: const Icon(Icons.chat),
+            backgroundColor: Colors.indigo,
+            tooltip: 'Mensajes con el doctor',
+          ),
+          const SizedBox(height: 16),
+          // Botón de crear cita
+          FloatingActionButton(
+            heroTag: "add_appointment",
+            onPressed: () async {
+              // Obtener datos del usuario actual
+              User? currentUser = _auth.currentUser;
+              if (currentUser != null) {
+                try {
+                  final userDoc = await _firestore
+                      .collection('usuarios')
+                      .doc(currentUser.uid)
+                      .get();
+                  
+                  if (userDoc.exists) {
+                    final userData = userDoc.data()!;
+                    final user = UserModel.fromMap(userData);
+                    
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => CreateAppointmentPage(patient: user),
+                      ),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("No se encontraron datos del usuario")),
+                    );
+                  }
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Error: $e")),
+                  );
+                }
+              }
+            },
+            child: const Icon(Icons.add),
+            backgroundColor: Colors.indigo,
+          ),
+        ],
       ),
     );
   }
 
   Stream<QuerySnapshot> _getAppointmentsStream() {
-    // TODO: Filtrar por usuario actual
+    User? currentUser = _auth.currentUser;
+    
+    if (currentUser == null) {
+      // Si no hay usuario autenticado, retornar stream vacío
+      return _firestore
+          .collection('citas')
+          .where('patientId', isEqualTo: 'no-user')
+          .snapshots();
+    }
+
+    // Filtrar citas donde el usuario es paciente
     return _firestore
-        .collection('appointments')
+        .collection('citas')
+        .where('patientId', isEqualTo: currentUser.uid)
         .orderBy('appointmentDate', descending: false)
         .snapshots();
   }
@@ -421,4 +492,5 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
       ),
     );
   }
+
 }

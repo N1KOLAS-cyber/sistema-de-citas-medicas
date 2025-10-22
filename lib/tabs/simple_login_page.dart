@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../constants/app_constants.dart';
+import '../services/firestore_service.dart';
 import 'dashboard_page.dart';
 import 'register_page.dart';
 import 'forgot_password_page.dart';
@@ -37,40 +38,58 @@ class _SimpleLoginPageState extends State<SimpleLoginPage> {
       );
 
       if (userCredential.user != null) {
-        Navigator.of(context).pop(); // Cerrar loading
+        // Intentar cargar datos del usuario desde Firestore
+        UserModel? user;
         
-        // Crear usuario básico sin depender de Firestore
-        String userName = 'Usuario';
-        bool isDoctor = false;
-        
-        // Determinar el nombre y tipo de usuario basado en el email
-        if (emailController.text.contains('admin')) {
-          userName = 'Administrador';
-        } else if (emailController.text.contains('test')) {
-          userName = 'Usuario de Prueba';
-        } else if (emailController.text.contains('anonimo')) {
-          userName = 'Usuario Anónimo';
-        } else {
-          // Para usuarios registrados, usar el email como base para el nombre
-          String emailPrefix = emailController.text.split('@')[0];
-          userName = emailPrefix.isNotEmpty ? emailPrefix : 'Usuario';
+        try {
+          user = await FirestoreService.getUser(userCredential.user!.uid);
+        } catch (e) {
+          print('⚠️ Error al cargar datos de Firestore: $e');
         }
         
-        UserModel user = UserModel(
-          id: userCredential.user!.uid,
-          email: userCredential.user!.email ?? '',
-          name: userName,
-          phone: 'No especificado',
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-          isDoctor: isDoctor,
-        );
+        // Si no hay datos en Firestore, crear usuario básico
+        if (user == null) {
+          String userName = 'Usuario';
+          bool isDoctor = false;
+          
+          // Determinar el nombre y tipo de usuario basado en el email
+          if (emailController.text.contains('admin')) {
+            userName = 'Administrador';
+          } else if (emailController.text.contains('test')) {
+            userName = 'Usuario de Prueba';
+          } else if (emailController.text.contains('anonimo')) {
+            userName = 'Usuario Anónimo';
+          } else {
+            // Para usuarios registrados, usar el email como base para el nombre
+            String emailPrefix = emailController.text.split('@')[0];
+            userName = emailPrefix.isNotEmpty ? emailPrefix : 'Usuario';
+          }
+          
+          user = UserModel(
+            id: userCredential.user!.uid,
+            email: userCredential.user!.email ?? '',
+            name: userName,
+            phone: 'No especificado',
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+            isDoctor: isDoctor,
+          );
+          
+          // Intentar crear el documento en Firestore en segundo plano
+          FirestoreService.createUser(user).catchError((error) {
+            print('⚠️ Error al crear usuario en Firestore: $error');
+          });
+        }
         
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => DashboardPage(user: user),
-          ),
-        );
+        Navigator.of(context).pop(); // Cerrar loading
+        
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => DashboardPage(user: user!),
+            ),
+          );
+        }
       }
     } on FirebaseAuthException catch (e) {
       Navigator.of(context).pop(); // Cerrar loading
@@ -135,8 +154,6 @@ class _SimpleLoginPageState extends State<SimpleLoginPage> {
       UserCredential userCredential = await _auth.signInAnonymously();
       
       if (userCredential.user != null) {
-        Navigator.of(context).pop(); // Cerrar loading
-        
         // Crear usuario anónimo básico
         UserModel anonymousUser = UserModel(
           id: userCredential.user!.uid,
@@ -147,6 +164,8 @@ class _SimpleLoginPageState extends State<SimpleLoginPage> {
           updatedAt: DateTime.now(),
           isDoctor: false,
         );
+        
+        Navigator.of(context).pop(); // Cerrar loading
         
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
@@ -166,10 +185,6 @@ class _SimpleLoginPageState extends State<SimpleLoginPage> {
         builder: (context) => const RegisterPage(),
       ),
     );
-  }
-
-  void _navigateToLogin() {
-    Navigator.of(context).pop();
   }
 
   @override

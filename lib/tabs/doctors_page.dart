@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_model.dart';
 import '../models/specialty_model.dart';
+import '../services/firestore_service.dart';
+import 'create_appointment_page.dart';
 
 class DoctorsPage extends StatefulWidget {
   const DoctorsPage({super.key});
@@ -12,6 +15,7 @@ class DoctorsPage extends StatefulWidget {
 
 class _DoctorsPageState extends State<DoctorsPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
   String _selectedSpecialty = 'Todas';
   final TextEditingController _searchController = TextEditingController();
 
@@ -165,7 +169,7 @@ class _DoctorsPageState extends State<DoctorsPage> {
 
   Stream<QuerySnapshot> _getDoctorsStream() {
     return _firestore
-        .collection('users')
+        .collection('usuarios')
         .where('isDoctor', isEqualTo: true)
         .snapshots();
   }
@@ -392,12 +396,69 @@ class _DoctorsPageState extends State<DoctorsPage> {
     );
   }
 
-  void _bookAppointment(UserModel doctor) {
-    // TODO: Implementar agendar cita
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text("Función de agendar cita con Dr. ${doctor.name} en desarrollo"),
+  void _bookAppointment(UserModel doctor) async {
+    // Mostrar indicador de carga
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
       ),
     );
+
+    try {
+      // Obtener datos del paciente actual
+      User? currentUser = _auth.currentUser;
+      
+      if (currentUser == null) {
+        Navigator.of(context).pop(); // Cerrar loading
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Debes iniciar sesión para agendar una cita"),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // Cargar datos del paciente desde Firestore
+      UserModel? patientData = await FirestoreService.getUser(currentUser.uid);
+      
+      if (!mounted) return;
+      Navigator.of(context).pop(); // Cerrar loading
+      
+      if (patientData == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Error al cargar tus datos. Intenta de nuevo."),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // Navegar a la página de crear cita con el doctor preseleccionado
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => CreateAppointmentPage(
+              patient: patientData,
+              preselectedDoctor: doctor,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.of(context).pop(); // Cerrar loading
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Error: $e"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }

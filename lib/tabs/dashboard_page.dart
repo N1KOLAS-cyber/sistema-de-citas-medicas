@@ -3,6 +3,9 @@ import '../models/user_model.dart';
 import 'appointments_page.dart';
 import 'doctors_page.dart';
 import 'profile_page.dart';
+import 'doctor_availability_page.dart';
+import 'create_appointment_page.dart';
+import 'admin_tools_page.dart';
 
 class DashboardPage extends StatefulWidget {
   final UserModel user;
@@ -119,8 +122,46 @@ class _DashboardPageState extends State<DashboardPage> {
               ),
               const SizedBox(height: 16),
               
+              // Botón de Admin Tools (para todos, pero útil para doctores)
+              if (widget.user.email.contains('admin') || widget.user.isDoctor) ...[
+                _buildActionCard(
+                  "⚙️ Herramientas Admin",
+                  "Crear horarios masivos y más utilidades",
+                  Icons.admin_panel_settings,
+                  Colors.deepOrange,
+                  () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AdminToolsPage(),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 12),
+              ],
+
+              // Widget de Consejos Médicos (para todos)
+              _buildMedicalAdviceCard(),
+              const SizedBox(height: 12),
+
               if (widget.user.isDoctor) ...[
                 // Acciones para doctores
+                _buildActionCard(
+                  "Gestionar Horarios",
+                  "Configura tu disponibilidad de consultas",
+                  Icons.access_time,
+                  Colors.orange,
+                  () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => DoctorAvailabilityPage(doctor: widget.user),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 12),
                 _buildActionCard(
                   "Ver Mis Citas",
                   "Gestiona tus citas programadas",
@@ -129,15 +170,23 @@ class _DashboardPageState extends State<DashboardPage> {
                   () => setState(() => _currentIndex = 1),
                 ),
                 const SizedBox(height: 12),
-                _buildActionCard(
-                  "Mi Perfil",
-                  "Actualiza tu información profesional",
-                  Icons.person,
-                  Colors.purple,
-                  () => setState(() => _currentIndex = 3),
-                ),
               ] else ...[
                 // Acciones para pacientes
+                _buildActionCard(
+                  "Agendar Cita",
+                  "Reserva una consulta con un especialista",
+                  Icons.add_circle,
+                  Colors.indigo,
+                  () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => CreateAppointmentPage(patient: widget.user),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 12),
                 _buildActionCard(
                   "Buscar Doctores",
                   "Encuentra especialistas cerca de ti",
@@ -154,13 +203,6 @@ class _DashboardPageState extends State<DashboardPage> {
                   () => setState(() => _currentIndex = 1),
                 ),
                 const SizedBox(height: 12),
-                _buildActionCard(
-                  "Mi Perfil",
-                  "Actualiza tu información personal",
-                  Icons.person,
-                  Colors.purple,
-                  () => setState(() => _currentIndex = 3),
-                ),
               ],
             ],
           ),
@@ -198,6 +240,204 @@ class _DashboardPageState extends State<DashboardPage> {
             textAlign: TextAlign.center,
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildMedicalAdviceCard() {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: Colors.teal.shade50,
+      child: InkWell(
+        onTap: _showMedicalAdvice,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.teal.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.tips_and_updates, color: Colors.teal, size: 24),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Consejos Médicos',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        Text(
+                          '¿No sabes qué médico consultar?',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.teal),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showMedicalAdvice() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.local_hospital, color: Colors.teal),
+            SizedBox(width: 8),
+            Text('Consejos Médicos'),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                '🤔 ¿No sabes qué médico consultar?',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const Divider(height: 24),
+              
+              _buildAdviceItem(
+                emoji: '🌮',
+                problem: 'Si comiste tacos de la esquina y te cayeron mal',
+                advice: 'Ve con un Médico General',
+                specialty: 'Medicina General',
+              ),
+              
+              _buildAdviceItem(
+                emoji: '🐸',
+                problem: 'Si te besó el sapo y ahora tienes calentura',
+                advice: 'Ve con un Médico General o Infectólogo',
+                specialty: 'Medicina General',
+              ),
+              
+              _buildAdviceItem(
+                emoji: '❤️',
+                problem: 'Si sientes que tu corazón late diferente',
+                advice: 'Ve con un Cardiólogo',
+                specialty: 'Cardiología',
+              ),
+              
+              _buildAdviceItem(
+                emoji: '👶',
+                problem: 'Si tu bebé tiene fiebre o malestar',
+                advice: 'Ve con un Pediatra',
+                specialty: 'Pediatría',
+              ),
+              
+              _buildAdviceItem(
+                emoji: '👁️',
+                problem: 'Si ves borroso o te duelen los ojos',
+                advice: 'Ve con un Oftalmólogo',
+                specialty: 'Oftalmología',
+              ),
+              
+              _buildAdviceItem(
+                emoji: '🦴',
+                problem: 'Si te duelen los huesos o articulaciones',
+                advice: 'Ve con un Ortopedista',
+                specialty: 'Ortopedia',
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cerrar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              setState(() => _currentIndex = 2); // Ir a Doctores
+            },
+            child: const Text('Ver Doctores'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAdviceItem({
+    required String emoji,
+    required String problem,
+    required String advice,
+    required String specialty,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  emoji,
+                  style: const TextStyle(fontSize: 24),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        problem,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '→ $advice',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.teal,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -269,18 +509,36 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
         ],
       ),
-      floatingActionButton: widget.user.isDoctor
-          ? FloatingActionButton(
+      floatingActionButton: _currentIndex == 0
+          ? FloatingActionButton.extended(
               onPressed: () {
-                // TODO: Implementar crear nueva cita para doctores
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text("Función en desarrollo"),
-                  ),
-                );
+                if (widget.user.isDoctor) {
+                  // Para doctores: gestionar horarios
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => DoctorAvailabilityPage(doctor: widget.user),
+                    ),
+                  );
+                } else {
+                  // Para pacientes: agendar cita
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => CreateAppointmentPage(patient: widget.user),
+                    ),
+                  );
+                }
               },
               backgroundColor: Colors.indigo,
-              child: const Icon(Icons.add, color: Colors.white),
+              icon: Icon(
+                widget.user.isDoctor ? Icons.access_time : Icons.add,
+                color: Colors.white,
+              ),
+              label: Text(
+                widget.user.isDoctor ? 'Horarios' : 'Nueva Cita',
+                style: const TextStyle(color: Colors.white),
+              ),
             )
           : null,
     );

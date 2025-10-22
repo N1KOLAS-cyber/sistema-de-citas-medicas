@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_model.dart';
+import '../services/firestore_service.dart';
 import 'simple_login_page.dart';
+import 'edit_profile_page.dart';
+import 'privacy_terms_page.dart';
 
 class ProfilePage extends StatefulWidget {
   final UserModel user;
@@ -159,6 +162,8 @@ class _ProfilePageState extends State<ProfilePage> {
               _buildInfoRow(Icons.medical_services, "Especialidad", _currentUser.specialty ?? 'No especificada'),
               _buildInfoRow(Icons.badge, "Licencia", _currentUser.licenseNumber ?? 'No disponible'),
             ],
+            if (!_currentUser.isDoctor && _currentUser.medicalHistory != null && _currentUser.medicalHistory!.isNotEmpty)
+              _buildInfoRow(Icons.local_hospital, "Historial Médico", _currentUser.medicalHistory!),
             _buildInfoRow(Icons.calendar_today, "Miembro desde", _formatDate(_currentUser.createdAt)),
           ],
         ),
@@ -273,6 +278,19 @@ class _ProfilePageState extends State<ProfilePage> {
               _changePassword,
             ),
             _buildActionTile(
+              Icons.privacy_tip,
+              "Privacidad y Términos",
+              "Lee nuestra política de privacidad",
+              () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const PrivacyTermsPage(),
+                  ),
+                );
+              },
+            ),
+            _buildActionTile(
               Icons.help,
               "Ayuda y Soporte",
               "Obtén ayuda con la aplicación",
@@ -358,13 +376,42 @@ class _ProfilePageState extends State<ProfilePage> {
     return "${date.day}/${date.month}/${date.year}";
   }
 
-  void _editProfile() {
-    // TODO: Implementar edición de perfil
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Función de editar perfil en desarrollo"),
+  void _editProfile() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditProfilePage(user: _currentUser),
       ),
     );
+
+    // Si se guardaron cambios, recargar los datos del usuario
+    if (result == true && mounted) {
+      try {
+        final updatedUser = await FirestoreService.getUser(_currentUser.id);
+        if (updatedUser != null) {
+          setState(() {
+            _currentUser = updatedUser;
+          });
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("Perfil actualizado exitosamente"),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Error al recargar perfil: $e"),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
   }
 
   void _changePassword() {
