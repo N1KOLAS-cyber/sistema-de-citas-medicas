@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
 import '../constants/app_constants.dart';
-import 'dashboard_page.dart';
+import 'home_page'
 import 'register_page.dart';
 
 class LoginPage extends StatefulWidget {
@@ -52,7 +52,7 @@ final FirebaseAuth _auth = FirebaseAuth.instance;
             // Navegar al dashboard
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
-                builder: (context) => DashboardPage(user: user),
+                builder: (context) => HomePage(user: user),
               ),
             );
           } else {
@@ -69,7 +69,7 @@ final FirebaseAuth _auth = FirebaseAuth.instance;
             
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
-                builder: (context) => DashboardPage(user: basicUser),
+                builder: (context) => HomePage(user: basicUser),
               ),
             );
           }
@@ -87,7 +87,7 @@ final FirebaseAuth _auth = FirebaseAuth.instance;
           
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
-              builder: (context) => DashboardPage(user: basicUser),
+              builder: (context) => HomePage(user: basicUser),
             ),
           );
         }

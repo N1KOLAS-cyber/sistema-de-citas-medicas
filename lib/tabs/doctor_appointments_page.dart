@@ -1,22 +1,21 @@
 /**
- * APPOINTMENTS PAGE - PÁGINA DE CITAS DEL USUARIO
+ * DOCTOR APPOINTMENTS PAGE - PÁGINA DE CITAS PARA DOCTORES
  * 
- * Este archivo contiene la página que muestra las citas del usuario actual.
- * Permite ver, filtrar y gestionar las citas médicas.
+ * Este archivo contiene la página que permite a los doctores ver y gestionar
+ * las citas que han solicitado los pacientes.
  * 
  * FUNCIONALIDADES:
- * - Lista de citas del usuario con información detallada
- * - Filtros por estado (Todas, Próximas, Canceladas)
- * - Visualización de detalles completos de cada cita
- * - Cancelación de citas (funcionalidad en desarrollo)
- * - Navegación a creación de nuevas citas
- * - Acceso a mensajes con doctores
+ * - Lista de citas pendientes de aprobación
+ * - Aprobación o rechazo de citas
+ * - Visualización de detalles del paciente
+ * - Filtros por estado de cita
+ * - Notificaciones de nuevas solicitudes
  * 
  * ESTRUCTURA:
- * - AppBar con filtros desplegables
- * - Lista de citas con tarjetas informativas
- * - Botones flotantes para acciones rápidas
- * - Diálogos de confirmación y detalles
+ * - AppBar con filtros y acciones
+ * - Lista de citas con información detallada
+ * - Botones de aprobación/rechazo
+ * - Diálogos de confirmación
  * 
  * VISUALIZACIÓN: Página con diseño de tarjetas, filtros intuitivos,
  * información clara de cada cita y botones de acción contextuales.
@@ -26,44 +25,28 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/appointment_model.dart';
-import '../models/user_model.dart';
-import 'create_appointment_page.dart';
-import 'messages_page.dart';
 
-class AppointmentsPage extends StatefulWidget {
-  const AppointmentsPage({super.key});
+class DoctorAppointmentsPage extends StatefulWidget {
+  const DoctorAppointmentsPage({super.key});
 
   @override
-  State<AppointmentsPage> createState() => _AppointmentsPageState();
+  State<DoctorAppointmentsPage> createState() => _DoctorAppointmentsPageState();
 }
 
-class _AppointmentsPageState extends State<AppointmentsPage> {
+class _DoctorAppointmentsPageState extends State<DoctorAppointmentsPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  String _selectedFilter = 'Todas'; // Por defecto mostrar todas las citas
+  String _selectedFilter = 'Pendientes';
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Mis Citas"),
+        title: const Text("Citas Médicas"),
         backgroundColor: Colors.indigo,
         foregroundColor: Colors.white,
         elevation: 2,
         actions: [
-          // Botón de chat
-          IconButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const MessagesPage(),
-                ),
-              );
-            },
-            icon: const Icon(Icons.chat),
-            tooltip: 'Chat con doctores',
-          ),
           // Menú de filtros
           PopupMenuButton<String>(
             onSelected: (value) {
@@ -72,9 +55,9 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
               });
             },
             itemBuilder: (context) => [
+              const PopupMenuItem(value: 'Pendientes', child: Text('Pendientes')),
+              const PopupMenuItem(value: 'Confirmadas', child: Text('Confirmadas')),
               const PopupMenuItem(value: 'Todas', child: Text('Todas')),
-              const PopupMenuItem(value: 'Próximas', child: Text('Próximas')),
-              const PopupMenuItem(value: 'Canceladas', child: Text('Canceladas')),
             ],
             child: Padding(
               padding: const EdgeInsets.all(16.0),
@@ -117,12 +100,12 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                   const Icon(Icons.calendar_today, size: 64, color: Colors.grey),
                   const SizedBox(height: 16),
                   const Text(
-                    'No tienes citas programadas',
+                    'No hay citas disponibles',
                     style: TextStyle(fontSize: 18, color: Colors.grey),
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'Agenda tu primera cita médica',
+                    'Las nuevas solicitudes aparecerán aquí',
                     style: TextStyle(color: Colors.grey),
                   ),
                 ],
@@ -134,22 +117,11 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
               .map((doc) => AppointmentModel.fromMap(doc.data() as Map<String, dynamic>))
               .toList();
 
+          // Ordenar por fecha de cita (más recientes primero)
+          appointments.sort((a, b) => a.appointmentDate.compareTo(b.appointmentDate));
+
           // Filtrar citas según el filtro seleccionado
-          if (_selectedFilter == 'Próximas') {
-            // Mostrar solo citas futuras (pendientes o confirmadas)
-            DateTime now = DateTime.now();
-            appointments = appointments.where((appointment) {
-              return appointment.appointmentDate.isAfter(now) &&
-                     (appointment.status == AppointmentStatus.pending ||
-                      appointment.status == AppointmentStatus.confirmed);
-            }).toList();
-          } else if (_selectedFilter == 'Canceladas') {
-            // Mostrar solo citas canceladas
-            appointments = appointments.where((appointment) {
-              return appointment.status == AppointmentStatus.cancelled;
-            }).toList();
-          }
-          // Si es 'Todas', no filtrar nada
+          appointments = _filterAppointments(appointments);
 
           return ListView.builder(
             padding: const EdgeInsets.all(16),
@@ -160,49 +132,12 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          // Obtener datos del usuario actual
-          User? currentUser = _auth.currentUser;
-          if (currentUser != null) {
-            try {
-              final userDoc = await _firestore
-                  .collection('usuarios')
-                  .doc(currentUser.uid)
-                  .get();
-              
-              if (userDoc.exists) {
-                final userData = userDoc.data()!;
-                final user = UserModel.fromMap(userData);
-                
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => CreateAppointmentPage(patient: user),
-                  ),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("No se encontraron datos del usuario")),
-                );
-              }
-            } catch (e) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text("Error: $e")),
-              );
-            }
-          }
-        },
-        child: const Icon(Icons.add),
-        backgroundColor: Colors.indigo,
-        tooltip: 'Agendar o editar cita',
-      ),
     );
   }
 
   /**
-   * Obtiene el stream de citas del usuario actual desde Firestore
-   * @return Stream<QuerySnapshot> - Stream de citas del usuario
+   * Obtiene el stream de citas del doctor actual desde Firestore
+   * @return Stream<QuerySnapshot> - Stream de citas del doctor
    */
   Stream<QuerySnapshot> _getAppointmentsStream() {
     User? currentUser = _auth.currentUser;
@@ -211,16 +146,34 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
       // Si no hay usuario autenticado, retornar stream vacío
       return _firestore
           .collection('citas')
-          .where('patientId', isEqualTo: 'no-user')
+          .where('doctorId', isEqualTo: 'no-user')
           .snapshots();
     }
 
-    // Filtrar citas donde el usuario es paciente
+    // Filtrar citas donde el usuario es doctor (sin ordenamiento para evitar índice)
     return _firestore
         .collection('citas')
-        .where('patientId', isEqualTo: currentUser.uid)
-        .orderBy('appointmentDate', descending: false)
+        .where('doctorId', isEqualTo: currentUser.uid)
         .snapshots();
+  }
+
+  /**
+   * Filtra las citas según el filtro seleccionado
+   * @param appointments - Lista de citas a filtrar
+   * @return List<AppointmentModel> - Lista filtrada de citas
+   */
+  List<AppointmentModel> _filterAppointments(List<AppointmentModel> appointments) {
+    if (_selectedFilter == 'Pendientes') {
+      return appointments.where((appointment) {
+        return appointment.status == AppointmentStatus.pending;
+      }).toList();
+    } else if (_selectedFilter == 'Confirmadas') {
+      return appointments.where((appointment) {
+        return appointment.status == AppointmentStatus.confirmed;
+      }).toList();
+    }
+    // Si es 'Todas', no filtrar nada
+    return appointments;
   }
 
   /**
@@ -271,18 +224,18 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
             ),
             const SizedBox(height: 12),
 
-            // Información del doctor/paciente
+            // Información del paciente
             Row(
               children: [
                 Icon(
-                  Icons.medical_services,
+                  Icons.person,
                   color: Colors.indigo,
                   size: 20,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    appointment.doctorName,
+                    appointment.patientName,
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
@@ -344,6 +297,41 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
               ],
             ),
 
+            // Síntomas si existen
+            if (appointment.symptoms != null && appointment.symptoms!.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange[200]!),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Síntomas reportados:",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: Colors.orange,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      appointment.symptoms!,
+                      style: TextStyle(
+                        color: Colors.orange[800],
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
             // Notas si existen
             if (appointment.notes != null && appointment.notes!.isNotEmpty) ...[
               const SizedBox(height: 12),
@@ -358,7 +346,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      "Notas:",
+                      "Notas del paciente:",
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 12,
@@ -377,31 +365,57 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
               ),
             ],
 
-            // Botones de acción
-            if (appointment.status == AppointmentStatus.pending ||
-                appointment.status == AppointmentStatus.confirmed) ...[
+            // Botones de acción para citas pendientes
+            if (appointment.status == AppointmentStatus.pending) ...[
               const SizedBox(height: 16),
               Row(
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () => _cancelAppointment(appointment),
+                      onPressed: () => _rejectAppointment(appointment),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.red,
                         side: const BorderSide(color: Colors.red),
                       ),
-                      child: const Text("Cancelar"),
+                      child: const Text("Rechazar"),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () => _viewAppointmentDetails(appointment),
+                      onPressed: () => _approveAppointment(appointment),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.indigo,
+                        backgroundColor: Colors.green,
                         foregroundColor: Colors.white,
                       ),
-                      child: const Text("Ver Detalles"),
+                      child: const Text("Aprobar"),
+                    ),
+                  ),
+                ],
+              ),
+            ] else if (appointment.status == AppointmentStatus.confirmed) ...[
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => _viewPatientDetails(appointment),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.indigo,
+                        side: const BorderSide(color: Colors.indigo),
+                      ),
+                      child: const Text("Ver Paciente"),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => _completeAppointment(appointment),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: const Text("Completar"),
                     ),
                   ),
                 ],
@@ -441,31 +455,49 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
   }
 
   /**
-   * Muestra diálogo de confirmación para cancelar una cita
-   * @param appointment - Cita a cancelar
+   * Aprueba una cita pendiente
+   * @param appointment - Cita a aprobar
    */
-  void _cancelAppointment(AppointmentModel appointment) {
+  void _approveAppointment(AppointmentModel appointment) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Cancelar Cita"),
-        content: const Text("¿Estás seguro de que quieres cancelar esta cita?"),
+        title: const Text("Aprobar Cita"),
+        content: const Text("¿Estás seguro de que quieres aprobar esta cita?"),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text("No"),
+            child: const Text("Cancelar"),
           ),
-          TextButton(
+          ElevatedButton(
             onPressed: () async {
-              // TODO: Implementar cancelación de cita
               Navigator.of(context).pop();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text("Función de cancelación en desarrollo"),
-                ),
-              );
+              try {
+                await _updateAppointmentStatus(appointment.id, AppointmentStatus.confirmed);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("Cita aprobada exitosamente"),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text("Error al aprobar cita: $e"),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
             },
-            child: const Text("Sí, Cancelar"),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text("Aprobar"),
           ),
         ],
       ),
@@ -473,20 +505,111 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
   }
 
   /**
-   * Muestra los detalles completos de una cita en un diálogo
-   * @param appointment - Cita de la cual mostrar detalles
+   * Rechaza una cita pendiente
+   * @param appointment - Cita a rechazar
    */
-  void _viewAppointmentDetails(AppointmentModel appointment) {
+  void _rejectAppointment(AppointmentModel appointment) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Detalles de la Cita"),
+        title: const Text("Rechazar Cita"),
+        content: const Text("¿Estás seguro de que quieres rechazar esta cita?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text("Cancelar"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              try {
+                await _updateAppointmentStatus(appointment.id, AppointmentStatus.cancelled);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("Cita rechazada"),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text("Error al rechazar cita: $e"),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text("Rechazar"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /**
+   * Actualiza el estado de una cita en Firestore
+   * @param appointmentId - ID de la cita
+   * @param newStatus - Nuevo estado de la cita
+   */
+  Future<void> _updateAppointmentStatus(String appointmentId, AppointmentStatus newStatus) async {
+    try {
+      // Mostrar indicador de carga
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      // Actualizar el estado en Firestore
+      await _firestore.collection('citas').doc(appointmentId).update({
+        'status': newStatus.name,
+        'updatedAt': DateTime.now().millisecondsSinceEpoch,
+      });
+
+      // Cerrar indicador de carga
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      // Cerrar indicador de carga si hay error
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Error al actualizar cita: $e"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      throw Exception('Error al actualizar cita: $e');
+    }
+  }
+
+  /**
+   * Muestra los detalles del paciente
+   * @param appointment - Cita de la cual mostrar detalles del paciente
+   */
+  void _viewPatientDetails(AppointmentModel appointment) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Detalles del Paciente"),
         content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildDetailRow("Doctor:", appointment.doctorName),
+              _buildDetailRow("Nombre:", appointment.patientName),
               _buildDetailRow("Especialidad:", appointment.specialty),
               _buildDetailRow("Fecha:", _formatDate(appointment.appointmentDate)),
               _buildDetailRow("Hora:", appointment.timeSlot),
@@ -496,12 +619,6 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                 _buildDetailRow("Notas:", appointment.notes!),
               if (appointment.symptoms != null)
                 _buildDetailRow("Síntomas:", appointment.symptoms!),
-              if (appointment.diagnosis != null)
-                _buildDetailRow("Diagnóstico:", appointment.diagnosis!),
-              if (appointment.prescription != null)
-                _buildDetailRow("Prescripción:", appointment.prescription!),
-              if (appointment.cost != null)
-                _buildDetailRow("Costo:", "\$${appointment.cost!.toStringAsFixed(2)}"),
             ],
           ),
         ),
@@ -509,6 +626,56 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
             child: const Text("Cerrar"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /**
+   * Marca una cita como completada
+   * @param appointment - Cita a completar
+   */
+  void _completeAppointment(AppointmentModel appointment) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Completar Cita"),
+        content: const Text("¿Has completado la consulta con este paciente?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text("Cancelar"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              try {
+                await _updateAppointmentStatus(appointment.id, AppointmentStatus.completed);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("Cita marcada como completada"),
+                      backgroundColor: Colors.blue,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text("Error al completar cita: $e"),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text("Completar"),
           ),
         ],
       ),
@@ -541,161 +708,4 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
       ),
     );
   }
-
-  /**
-   * Muestra un diálogo para crear nueva cita o editar una existente
-   */
-  void _showCreateOrEditDialog() async {
-    User? currentUser = _auth.currentUser;
-    if (currentUser == null) return;
-
-    try {
-      final userDoc = await _firestore
-          .collection('usuarios')
-          .doc(currentUser.uid)
-          .get();
-      
-      if (!userDoc.exists) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("No se encontraron datos del usuario")),
-        );
-        return;
-      }
-
-      final userData = userDoc.data()!;
-      final user = UserModel.fromMap(userData);
-
-      // Obtener citas editables (pendientes o confirmadas, futuras)
-      final appointmentsSnapshot = await _firestore
-          .collection('citas')
-          .where('patientId', isEqualTo: currentUser.uid)
-          .where('status', whereIn: ['pending', 'confirmed'])
-          .orderBy('appointmentDate', descending: false)
-          .get();
-
-      List<AppointmentModel> editableAppointments = appointmentsSnapshot.docs
-          .map((doc) => AppointmentModel.fromMap(doc.data()))
-          .where((appointment) => appointment.appointmentDate.isAfter(DateTime.now()))
-          .toList();
-
-      if (editableAppointments.isEmpty) {
-        // Si no hay citas editables, ir directamente a crear nueva cita
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => CreateAppointmentPage(patient: user),
-          ),
-        );
-        return;
-      }
-
-      // Mostrar diálogo con opciones
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text("Gestionar Citas"),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.add_circle, color: Colors.indigo),
-                title: const Text("Crear Nueva Cita"),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => CreateAppointmentPage(patient: user),
-                    ),
-                  );
-                },
-              ),
-              const Divider(),
-              const Text(
-                "Editar Cita Existente:",
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                height: 200,
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: editableAppointments.length,
-                  itemBuilder: (context, index) {
-                    final appointment = editableAppointments[index];
-                    return ListTile(
-                      leading: const Icon(Icons.edit, color: Colors.orange),
-                      title: Text(
-                        'Dr. ${appointment.doctorName}',
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                      ),
-                      subtitle: Text(
-                        '${_formatDate(appointment.appointmentDate)} - ${appointment.timeSlot}\n'
-                        'Estado: ${appointment.statusText}',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                      onTap: () {
-                        Navigator.of(context).pop();
-                        _editAppointment(appointment, user);
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text("Cancelar"),
-            ),
-          ],
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
-      );
-    }
-  }
-
-  /**
-   * Abre la página de edición de una cita
-   * @param appointment - Cita a editar
-   * @param user - Usuario paciente
-   */
-  void _editAppointment(AppointmentModel appointment, UserModel user) async {
-    // Obtener el doctor de la cita
-    try {
-      final doctorDoc = await _firestore
-          .collection('usuarios')
-          .doc(appointment.doctorId)
-          .get();
-      
-      if (doctorDoc.exists) {
-        final doctorData = doctorDoc.data()!;
-        final doctor = UserModel.fromMap(doctorData);
-        
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => CreateAppointmentPage(
-              patient: user,
-              preselectedDoctor: doctor,
-              editingAppointment: appointment,
-            ),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("No se encontró información del doctor")),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error al editar cita: $e")),
-      );
-    }
-  }
-
 }

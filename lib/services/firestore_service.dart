@@ -1,3 +1,27 @@
+/**
+ * FIRESTORE SERVICE - SERVICIO DE BASE DE DATOS
+ * 
+ * Este archivo contiene todas las operaciones de base de datos con Firestore.
+ * Maneja usuarios, citas y disponibilidad de doctores.
+ * 
+ * FUNCIONALIDADES:
+ * - CRUD completo para usuarios (pacientes y doctores)
+ * - CRUD completo para citas médicas
+ * - Gestión de disponibilidad de doctores
+ * - Consultas especializadas por filtros
+ * - Operaciones en lote para eficiencia
+ * 
+ * ESTRUCTURA:
+ * - Métodos de usuarios: createUser, getUser, updateUser, getDoctors
+ * - Métodos de citas: createAppointment, updateAppointment, getUserAppointments
+ * - Métodos de disponibilidad: createAvailability, getAvailableSlots
+ * - Helpers para formateo y validación
+ * 
+ * VISUALIZACIÓN: Servicio que actúa como capa de abstracción entre
+ * la aplicación y Firestore, proporcionando métodos simplificados
+ * para todas las operaciones de base de datos.
+ */
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
 import '../models/appointment_model.dart';
@@ -11,7 +35,12 @@ class FirestoreService {
   static const String _appointmentsCollection = 'citas'; // Colección de citas
   static const String _availabilityCollection = 'disponibilidad_medicos'; // Colección de disponibilidad
 
-  // User Methods
+  // ========== MÉTODOS DE USUARIOS ==========
+  
+  /**
+   * Crea un nuevo usuario en Firestore
+   * @param user - Modelo del usuario a crear
+   */
   static Future<void> createUser(UserModel user) async {
     await _firestore
         .collection(_usersCollection)
@@ -19,6 +48,11 @@ class FirestoreService {
         .set(user.toMap());
   }
 
+  /**
+   * Obtiene un usuario por su ID
+   * @param userId - ID del usuario
+   * @return UserModel? - Usuario encontrado o null
+   */
   static Future<UserModel?> getUser(String userId) async {
     DocumentSnapshot doc = await _firestore
         .collection(_usersCollection)
@@ -59,7 +93,12 @@ class FirestoreService {
             .toList());
   }
 
-  // Appointment Methods
+  // ========== MÉTODOS DE CITAS ==========
+  
+  /**
+   * Crea una nueva cita en Firestore
+   * @param appointment - Modelo de la cita a crear
+   */
   static Future<void> createAppointment(AppointmentModel appointment) async {
     await _firestore
         .collection(_appointmentsCollection)
@@ -137,7 +176,12 @@ class FirestoreService {
         .toList();
   }
 
-  // Doctor Availability Methods
+  // ========== MÉTODOS DE DISPONIBILIDAD ==========
+  
+  /**
+   * Crea un nuevo horario de disponibilidad para un doctor
+   * @param availability - Modelo de disponibilidad a crear
+   */
   static Future<void> createAvailability(DoctorAvailabilityModel availability) async {
     await _firestore
         .collection(_availabilityCollection)

@@ -1,10 +1,32 @@
+/**
+ * DOCTORS PAGE - PÁGINA DE LISTADO DE DOCTORES
+ * 
+ * Este archivo contiene la página que muestra la lista de doctores disponibles.
+ * Permite buscar, filtrar por especialidad y agendar citas.
+ * 
+ * FUNCIONALIDADES:
+ * - Lista de doctores con información detallada
+ * - Búsqueda por nombre y especialidad
+ * - Filtros por especialidad médica
+ * - Visualización de perfil del doctor
+ * - Agendamiento directo de citas
+ * - Calificaciones y estadísticas
+ * 
+ * ESTRUCTURA:
+ * - Barra de búsqueda
+ * - Filtros de especialidad
+ * - Lista de doctores con tarjetas
+ * - Diálogos de perfil y agendamiento
+ * 
+ * VISUALIZACIÓN: Página con diseño de tarjetas, filtros horizontales,
+ * búsqueda en tiempo real y información detallada de cada doctor.
+ */
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_model.dart';
 import '../models/specialty_model.dart';
-import '../services/firestore_service.dart';
-import 'create_appointment_page.dart';
 
 class DoctorsPage extends StatefulWidget {
   const DoctorsPage({super.key});
@@ -167,6 +189,10 @@ class _DoctorsPageState extends State<DoctorsPage> {
     );
   }
 
+  /**
+   * Obtiene el stream de doctores desde Firestore
+   * @return Stream<QuerySnapshot> - Stream de doctores
+   */
   Stream<QuerySnapshot> _getDoctorsStream() {
     return _firestore
         .collection('usuarios')
@@ -174,6 +200,11 @@ class _DoctorsPageState extends State<DoctorsPage> {
         .snapshots();
   }
 
+  /**
+   * Filtra la lista de doctores según especialidad y búsqueda
+   * @param doctors - Lista de doctores a filtrar
+   * @return List<UserModel> - Lista filtrada de doctores
+   */
   List<UserModel> _filterDoctors(List<UserModel> doctors) {
     // Filtrar por especialidad
     if (_selectedSpecialty != 'Todas') {
@@ -192,6 +223,11 @@ class _DoctorsPageState extends State<DoctorsPage> {
     return doctors;
   }
 
+  /**
+   * Construye la tarjeta de información de un doctor
+   * @param doctor - Modelo del doctor a mostrar
+   * @return Widget - Tarjeta con información del doctor
+   */
   Widget _buildDoctorCard(UserModel doctor) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -318,11 +354,11 @@ class _DoctorsPageState extends State<DoctorsPage> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () => _bookAppointment(doctor),
-                    icon: const Icon(Icons.calendar_today, size: 16),
-                    label: const Text("Agendar Cita"),
+                    onPressed: () => _showRatingButton(doctor),
+                    icon: const Icon(Icons.star, size: 16),
+                    label: const Text("Calificar"),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.indigo,
+                      backgroundColor: Colors.orange,
                       foregroundColor: Colors.white,
                     ),
                   ),
@@ -335,6 +371,10 @@ class _DoctorsPageState extends State<DoctorsPage> {
     );
   }
 
+  /**
+   * Muestra el perfil detallado de un doctor en un diálogo
+   * @param doctor - Doctor del cual mostrar el perfil
+   */
   void _viewDoctorProfile(UserModel doctor) {
     showDialog(
       context: context,
@@ -362,19 +402,25 @@ class _DoctorsPageState extends State<DoctorsPage> {
           ElevatedButton(
             onPressed: () {
               Navigator.of(context).pop();
-              _bookAppointment(doctor);
+              _showRatingButton(doctor);
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.indigo,
+              backgroundColor: Colors.orange,
               foregroundColor: Colors.white,
             ),
-            child: const Text("Agendar Cita"),
+            child: const Text("Calificar"),
           ),
         ],
       ),
     );
   }
 
+  /**
+   * Construye una fila de detalle del perfil
+   * @param label - Etiqueta del campo
+   * @param value - Valor del campo
+   * @return Widget - Fila de detalle
+   */
   Widget _buildProfileDetail(String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -396,69 +442,337 @@ class _DoctorsPageState extends State<DoctorsPage> {
     );
   }
 
-  void _bookAppointment(UserModel doctor) async {
-    // Mostrar indicador de carga
+  /**
+   * Decide si mostrar el botón de puntuar o solo ver calificaciones
+   * @param doctor - Doctor a evaluar
+   */
+  void _showRatingButton(UserModel doctor) async {
+    // Verificar si el usuario actual es doctor
+    User? currentUser = _auth.currentUser;
+    if (currentUser != null) {
+      try {
+        final userDoc = await _firestore
+            .collection('usuarios')
+            .doc(currentUser.uid)
+            .get();
+        
+        if (userDoc.exists) {
+          final userData = userDoc.data()!;
+          final isCurrentUserDoctor = userData['isDoctor'] ?? false;
+          
+          if (isCurrentUserDoctor) {
+            // Si es doctor, solo mostrar calificaciones
+            _viewDoctorRating(doctor);
+            return;
+          }
+        }
+      } catch (e) {
+        // Si hay error al verificar, permitir la puntuación
+        print('Error verificando usuario: $e');
+      }
+    }
+
+    // Si no es doctor, permitir puntuar
+    _rateDoctor(doctor);
+  }
+
+  /**
+   * Muestra las calificaciones del doctor sin permitir puntuar
+   * @param doctor - Doctor del cual mostrar calificaciones
+   */
+  void _viewDoctorRating(UserModel doctor) {
     showDialog(
       context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(),
+      builder: (context) => AlertDialog(
+        title: Text("Calificaciones - Dr. ${doctor.name}"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Calificación actual
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.star, color: Colors.orange, size: 30),
+                const SizedBox(width: 8),
+                Text(
+                  "${doctor.rating?.toStringAsFixed(1) ?? '0.0'}",
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  "/ 5.0",
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            
+            // Número de citas
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.calendar_today, color: Colors.blue[600], size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    "${doctor.totalAppointments ?? 0} citas atendidas",
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.blue[800],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            
+            // Mensaje informativo
+            Text(
+              "Esta calificación se basa en las evaluaciones de los pacientes que han tenido consultas con este doctor.",
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[600],
+                fontStyle: FontStyle.italic,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text("Cerrar"),
+          ),
+        ],
       ),
     );
+  }
 
+  /**
+   * Muestra el diálogo para puntuar a un doctor
+   * Permite al usuario calificar al doctor y actualizar su puntuación
+   * @param doctor - Doctor a puntuar
+   */
+  void _rateDoctor(UserModel doctor) async {
+    // Verificar si el usuario actual es doctor
+    User? currentUser = _auth.currentUser;
+    if (currentUser != null) {
+      try {
+        final userDoc = await _firestore
+            .collection('usuarios')
+            .doc(currentUser.uid)
+            .get();
+        
+        if (userDoc.exists) {
+          final userData = userDoc.data()!;
+          final isCurrentUserDoctor = userData['isDoctor'] ?? false;
+          
+          if (isCurrentUserDoctor) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("Los doctores no pueden puntuar a otros doctores"),
+                backgroundColor: Colors.orange,
+              ),
+            );
+            return;
+          }
+        }
+      } catch (e) {
+        // Si hay error al verificar, permitir la puntuación
+        print('Error verificando usuario: $e');
+      }
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => _RatingDialog(doctor: doctor, onSubmit: _submitRating),
+    );
+  }
+
+  /**
+   * Envía la puntuación del doctor y actualiza su calificación promedio
+   * @param doctor - Doctor a calificar
+   * @param rating - Puntuación dada (1-5)
+   */
+  void _submitRating(UserModel doctor, double rating) async {
     try {
-      // Obtener datos del paciente actual
+      // Mostrar indicador de carga
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      // Obtener datos del usuario actual
       User? currentUser = _auth.currentUser;
-      
       if (currentUser == null) {
         Navigator.of(context).pop(); // Cerrar loading
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text("Debes iniciar sesión para agendar una cita"),
+            content: Text("Debes iniciar sesión para puntuar"),
             backgroundColor: Colors.red,
           ),
         );
         return;
       }
 
-      // Cargar datos del paciente desde Firestore
-      UserModel? patientData = await FirestoreService.getUser(currentUser.uid);
+      // Actualizar la calificación del doctor
+      await _updateDoctorRating(doctor.id, rating);
       
       if (!mounted) return;
       Navigator.of(context).pop(); // Cerrar loading
+      Navigator.of(context).pop(); // Cerrar diálogo de puntuación
       
-      if (patientData == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Error al cargar tus datos. Intenta de nuevo."),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return;
-      }
-
-      // Navegar a la página de crear cita con el doctor preseleccionado
-      if (mounted) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => CreateAppointmentPage(
-              patient: patientData,
-              preselectedDoctor: doctor,
-            ),
-          ),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("¡Gracias por puntuar a Dr. ${doctor.name}!"),
+          backgroundColor: Colors.green,
+        ),
+      );
     } catch (e) {
       if (mounted) {
         Navigator.of(context).pop(); // Cerrar loading
+        Navigator.of(context).pop(); // Cerrar diálogo de puntuación
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Error: $e"),
+            content: Text("Error al enviar puntuación: $e"),
             backgroundColor: Colors.red,
           ),
         );
       }
     }
+  }
+
+  /**
+   * Actualiza la calificación promedio del doctor en Firestore
+   * @param doctorId - ID del doctor
+   * @param newRating - Nueva puntuación
+   */
+  Future<void> _updateDoctorRating(String doctorId, double newRating) async {
+    try {
+      // Obtener datos actuales del doctor
+      final doctorDoc = await _firestore.collection('usuarios').doc(doctorId).get();
+      if (!doctorDoc.exists) {
+        throw Exception('Doctor no encontrado');
+      }
+
+      final doctorData = doctorDoc.data()!;
+      final currentRating = doctorData['rating']?.toDouble() ?? 0.0;
+      final totalAppointments = doctorData['totalAppointments'] ?? 0;
+      
+      // Calcular nueva calificación promedio
+      final newTotalAppointments = totalAppointments + 1;
+      final newAverageRating = ((currentRating * totalAppointments) + newRating) / newTotalAppointments;
+
+      // Actualizar en Firestore
+      await _firestore.collection('usuarios').doc(doctorId).update({
+        'rating': newAverageRating,
+        'totalAppointments': newTotalAppointments,
+        'updatedAt': DateTime.now().millisecondsSinceEpoch,
+      });
+    } catch (e) {
+      throw Exception('Error al actualizar calificación: $e');
+    }
+  }
+}
+
+/**
+ * Widget de diálogo para puntuar doctores
+ * Maneja el estado de las estrellas de forma independiente
+ */
+class _RatingDialog extends StatefulWidget {
+  final UserModel doctor;
+  final Function(UserModel doctor, double rating) onSubmit;
+
+  const _RatingDialog({
+    required this.doctor,
+    required this.onSubmit,
+  });
+
+  @override
+  State<_RatingDialog> createState() => _RatingDialogState();
+}
+
+class _RatingDialogState extends State<_RatingDialog> {
+  double currentRating = 0.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text("Puntuar Dr. ${widget.doctor.name}"),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            "¿Cómo calificarías la atención de este doctor?",
+            style: TextStyle(fontSize: 16),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(5, (index) {
+              return GestureDetector(
+                onTap: () {
+                  setState(() {
+                    currentRating = (index + 1).toDouble();
+                  });
+                },
+                child: Icon(
+                  Icons.star,
+                  size: 40,
+                  color: index < currentRating 
+                      ? Colors.orange 
+                      : Colors.grey[300],
+                ),
+              );
+            }),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            currentRating > 0 
+                ? "${currentRating.toInt()} estrella${currentRating > 1 ? 's' : ''}"
+                : "Selecciona una puntuación",
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: currentRating > 0 ? Colors.orange : Colors.grey,
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text("Cancelar"),
+        ),
+        ElevatedButton(
+          onPressed: currentRating > 0 
+              ? () {
+                  widget.onSubmit(widget.doctor, currentRating);
+                  Navigator.of(context).pop();
+                }
+              : null,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.orange,
+            foregroundColor: Colors.white,
+          ),
+          child: const Text("Enviar Puntuación"),
+        ),
+      ],
+    );
   }
 }

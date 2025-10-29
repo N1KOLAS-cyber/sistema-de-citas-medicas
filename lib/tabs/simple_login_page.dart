@@ -1,9 +1,33 @@
+/**
+ * SIMPLE LOGIN PAGE - PÁGINA DE INICIO DE SESIÓN
+ * 
+ * Este archivo contiene la página de login principal del sistema.
+ * Permite autenticación con email/contraseña y acceso rápido para testing.
+ * 
+ * FUNCIONALIDADES:
+ * - Login con email y contraseña
+ * - Login anónimo para usuarios invitados
+ * - Acceso rápido para admin y usuario de prueba
+ * - Navegación a registro y recuperación de contraseña
+ * - Validación de formularios
+ * - Manejo de errores de autenticación
+ * 
+ * ESTRUCTURA:
+ * - Formulario de login con validación
+ * - Botones de acceso rápido (Admin, Usuario, Invitado)
+ * - Navegación a otras páginas
+ * - Logo y branding de la aplicación
+ * 
+ * VISUALIZACIÓN: Página de login con diseño moderno, logo de la app,
+ * formulario centrado y botones de acceso rápido para facilitar testing.
+ */
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../constants/app_constants.dart';
 import '../services/firestore_service.dart';
-import 'dashboard_page.dart';
+import 'home_page.dart';
 import 'register_page.dart';
 import 'forgot_password_page.dart';
 
@@ -21,7 +45,10 @@ class _SimpleLoginPageState extends State<SimpleLoginPage> {
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  // --- FUNCIÓN DE LOGIN SIMPLIFICADA ---
+  /**
+   * Función principal de login con email y contraseña
+   * Maneja autenticación, carga de datos de usuario y navegación
+   */
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -86,7 +113,7 @@ class _SimpleLoginPageState extends State<SimpleLoginPage> {
         if (mounted) {
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
-              builder: (context) => DashboardPage(user: user!),
+              builder: (context) => HomePage(user: user!),
             ),
           );
         }
@@ -112,6 +139,10 @@ class _SimpleLoginPageState extends State<SimpleLoginPage> {
     }
   }
 
+  /**
+   * Muestra un diálogo de error con el mensaje especificado
+   * @param message - Mensaje de error a mostrar
+   */
   void _showErrorDialog(String message) {
     showDialog(
       context: context,
@@ -128,21 +159,30 @@ class _SimpleLoginPageState extends State<SimpleLoginPage> {
     );
   }
 
-  // Función para login rápido como administrador
+  /**
+   * Login rápido como administrador usando credenciales predefinidas
+   * Facilita el testing y desarrollo
+   */
   Future<void> _loginAsAdmin() async {
     emailController.text = AppConstants.adminEmail;
     passwordController.text = AppConstants.adminPassword;
     await _login();
   }
 
-  // Función para login rápido como usuario de prueba
+  /**
+   * Login rápido como usuario de prueba usando credenciales predefinidas
+   * Facilita el testing con un usuario normal
+   */
   Future<void> _loginAsTestUser() async {
     emailController.text = AppConstants.testUserEmail;
     passwordController.text = AppConstants.testUserPassword;
     await _login();
   }
 
-  // Función para login anónimo
+  /**
+   * Login anónimo para usuarios invitados
+   * Permite acceso sin registro para explorar la aplicación
+   */
   Future<void> _loginAnonymously() async {
     showDialog(
       context: context,
@@ -169,7 +209,7 @@ class _SimpleLoginPageState extends State<SimpleLoginPage> {
         
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (context) => DashboardPage(user: anonymousUser),
+            builder: (context) => HomePage(user: anonymousUser),
           ),
         );
       }
@@ -179,6 +219,9 @@ class _SimpleLoginPageState extends State<SimpleLoginPage> {
     }
   }
 
+  /**
+   * Navega a la página de registro
+   */
   void _navigateToRegister() {
     Navigator.of(context).push(
       MaterialPageRoute(

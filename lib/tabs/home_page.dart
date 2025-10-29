@@ -1,37 +1,79 @@
+/**
+ * HOME PAGE - PÁGINA PRINCIPAL DEL SISTEMA DE CITAS MÉDICAS
+ * 
+ * Este archivo contiene la página principal (home) del sistema de citas médicas.
+ * Es el dashboard central que se muestra después del login y funciona como el
+ * punto de entrada principal para usuarios y doctores.
+ * 
+ * FUNCIONALIDADES PRINCIPALES:
+ * - Dashboard personalizado según el tipo de usuario (paciente/doctor)
+ * - Navegación entre diferentes secciones (Citas, Doctores, Perfil)
+ * - Acciones rápidas específicas por rol
+ * - Consejos médicos interactivos
+ * - Estadísticas para doctores
+ * - Botón flotante contextual
+ * 
+ * ESTRUCTURA:
+ * - Header con saludo personalizado
+ * - Estadísticas (solo para doctores)
+ * - Acciones rápidas por rol
+ * - Consejos médicos
+ * - Navegación inferior con tabs
+ * 
+ * VISUALIZACIÓN: Página principal con diseño moderno, gradientes,
+ * tarjetas informativas y navegación intuitiva.
+ */
+
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
+import '../models/appointment_model.dart';
+import '../services/advice_service.dart';
 import 'appointments_page.dart';
 import 'doctors_page.dart';
 import 'profile_page.dart';
 import 'doctor_availability_page.dart';
 import 'create_appointment_page.dart';
 import 'admin_tools_page.dart';
+import 'doctor_appointments_page.dart';
 
-class DashboardPage extends StatefulWidget {
+class HomePage extends StatefulWidget {
   final UserModel user;
 
-  const DashboardPage({super.key, required this.user});
+  const HomePage({super.key, required this.user});
 
   @override
-  State<DashboardPage> createState() => _DashboardPageState();
+  State<HomePage> createState() => _HomePageState();
 }
 
-class _DashboardPageState extends State<DashboardPage> {
+class _HomePageState extends State<HomePage> {
   int _currentIndex = 0;
+  String _randomAdvice = 'Cargando consejo...';
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   final List<Widget> _pages = [];
-
+  
   @override
   void initState() {
     super.initState();
+    _loadRandomAdvice();
+    _refreshAdvicePeriodically();
+    // Inicializar las páginas del tab navigation
     _pages.addAll([
-      _buildHomePage(),
-      const AppointmentsPage(),
-      const DoctorsPage(),
-      ProfilePage(user: widget.user),
+      _buildHomePage(), // Página principal personalizada
+      const AppointmentsPage(), // Página de citas
+      const DoctorsPage(), // Página de doctores
+      ProfilePage(user: widget.user), // Página de perfil del usuario
     ]);
   }
 
+  /**
+   * Construye la página principal personalizada del dashboard
+   * Muestra contenido diferente según el tipo de usuario (doctor/paciente)
+   * @return Widget - Scaffold con el contenido principal
+   */
   Widget _buildHomePage() {
     return Scaffold(
       body: SafeArea(
@@ -40,7 +82,7 @@ class _DashboardPageState extends State<DashboardPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header con saludo
+              // Header con saludo personalizado
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
@@ -112,6 +154,16 @@ class _DashboardPageState extends State<DashboardPage> {
                 const SizedBox(height: 24),
               ],
 
+              // Widget de Consejo Aleatorio
+              _buildRandomAdviceCard(),
+              const SizedBox(height: 24),
+
+              // Estadísticas de Citas (solo para pacientes)
+              if (!widget.user.isDoctor) ...[
+                _buildAppointmentStats(),
+                const SizedBox(height: 24),
+              ],
+
               // Acciones rápidas
               const Text(
                 "Acciones Rápidas",
@@ -122,8 +174,8 @@ class _DashboardPageState extends State<DashboardPage> {
               ),
               const SizedBox(height: 16),
               
-              // Botón de Admin Tools (para todos, pero útil para doctores)
-              if (widget.user.email.contains('admin') || widget.user.isDoctor) ...[
+              // Botón de Admin Tools (solo para administradores)
+              if (widget.user.email.contains('admin')) ...[
                 _buildActionCard(
                   "⚙️ Herramientas Admin",
                   "Crear horarios masivos y más utilidades",
@@ -141,12 +193,23 @@ class _DashboardPageState extends State<DashboardPage> {
                 const SizedBox(height: 12),
               ],
 
-              // Widget de Consejos Médicos (para todos)
-              _buildMedicalAdviceCard(),
-              const SizedBox(height: 12),
-
               if (widget.user.isDoctor) ...[
                 // Acciones para doctores
+                _buildActionCard(
+                  "Gestionar Citas",
+                  "Revisa y aprueba citas pendientes",
+                  Icons.calendar_today,
+                  Colors.green,
+                  () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const DoctorAppointmentsPage(),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 12),
                 _buildActionCard(
                   "Gestionar Horarios",
                   "Configura tu disponibilidad de consultas",
@@ -211,6 +274,14 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
+  /**
+   * Construye una tarjeta de estadísticas para doctores
+   * @param title - Título de la estadística
+   * @param value - Valor numérico a mostrar
+   * @param icon - Icono representativo
+   * @param color - Color del tema de la tarjeta
+   * @return Widget - Tarjeta con estadística
+   */
   Widget _buildStatCard(String title, String value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -244,6 +315,11 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
+  /**
+   * Construye la tarjeta de consejos médicos interactiva
+   * Permite a los usuarios obtener orientación sobre qué especialista consultar
+   * @return Widget - Tarjeta con consejos médicos
+   */
   Widget _buildMedicalAdviceCard() {
     return Card(
       elevation: 4,
@@ -299,6 +375,10 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
+  /**
+   * Muestra un diálogo con consejos médicos detallados
+   * Ayuda a los usuarios a decidir qué especialista consultar según sus síntomas
+   */
   void _showMedicalAdvice() {
     showDialog(
       context: context,
@@ -385,6 +465,14 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
+  /**
+   * Construye un elemento individual de consejo médico
+   * @param emoji - Emoji representativo del problema
+   * @param problem - Descripción del problema/síntoma
+   * @param advice - Consejo médico específico
+   * @param specialty - Especialidad médica recomendada
+   * @return Widget - Elemento de consejo médico
+   */
   Widget _buildAdviceItem({
     required String emoji,
     required String problem,
@@ -442,6 +530,15 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
+  /**
+   * Construye una tarjeta de acción rápida
+   * @param title - Título de la acción
+   * @param subtitle - Descripción de la acción
+   * @param icon - Icono representativo
+   * @param color - Color del tema
+   * @param onTap - Función a ejecutar al tocar
+   * @return Widget - Tarjeta de acción
+   */
   Widget _buildActionCard(
     String title,
     String subtitle,

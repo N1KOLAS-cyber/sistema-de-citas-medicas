@@ -1,3 +1,28 @@
+/**
+ * PROFILE PAGE - PÁGINA DE PERFIL DEL USUARIO
+ * 
+ * Este archivo contiene la página de perfil del usuario actual.
+ * Muestra información personal, estadísticas y opciones de configuración.
+ * 
+ * FUNCIONALIDADES:
+ * - Visualización de información personal del usuario
+ * - Estadísticas profesionales (para doctores)
+ * - Edición de perfil
+ * - Cambio de contraseña
+ * - Acceso a privacidad y términos
+ * - Ayuda y soporte
+ * - Cerrar sesión
+ * 
+ * ESTRUCTURA:
+ * - Header con avatar y información básica
+ * - Sección de información personal
+ * - Estadísticas (solo para doctores)
+ * - Acciones y configuraciones
+ * 
+ * VISUALIZACIÓN: Página con diseño moderno, gradientes, tarjetas
+ * informativas y navegación intuitiva a diferentes opciones.
+ */
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_model.dart';
@@ -138,6 +163,10 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  /**
+   * Construye la sección de información personal del usuario
+   * @return Widget - Sección con información personal
+   */
   Widget _buildInfoSection() {
     return Card(
       elevation: 4,
@@ -171,6 +200,10 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  /**
+   * Construye la sección de estadísticas profesionales (solo para doctores)
+   * @return Widget - Sección con estadísticas del doctor
+   */
   Widget _buildStatsSection() {
     return Card(
       elevation: 4,
@@ -215,6 +248,14 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  /**
+   * Construye un elemento de estadística individual
+   * @param title - Título de la estadística
+   * @param value - Valor de la estadística
+   * @param icon - Icono representativo
+   * @param color - Color del tema
+   * @return Widget - Elemento de estadística
+   */
   Widget _buildStatItem(String title, String value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -248,6 +289,10 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  /**
+   * Construye la sección de acciones y configuraciones
+   * @return Widget - Sección con acciones disponibles
+   */
   Widget _buildActionsSection() {
     return Card(
       elevation: 4,
@@ -309,6 +354,13 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  /**
+   * Construye una fila de información personal
+   * @param icon - Icono del campo
+   * @param label - Etiqueta del campo
+   * @param value - Valor del campo
+   * @return Widget - Fila de información
+   */
   Widget _buildInfoRow(IconData icon, String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -337,6 +389,15 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  /**
+   * Construye una tarjeta de acción
+   * @param icon - Icono de la acción
+   * @param title - Título de la acción
+   * @param subtitle - Descripción de la acción
+   * @param onTap - Función a ejecutar al tocar
+   * @param isDestructive - Si es una acción destructiva (roja)
+   * @return Widget - Tarjeta de acción
+   */
   Widget _buildActionTile(
     IconData icon,
     String title,
@@ -372,10 +433,19 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  /**
+   * Formatea una fecha para mostrar en la interfaz
+   * @param date - Fecha a formatear
+   * @return String - Fecha formateada
+   */
   String _formatDate(DateTime date) {
     return "${date.day}/${date.month}/${date.year}";
   }
 
+  /**
+   * Navega a la página de edición de perfil
+   * Actualiza los datos del usuario si se guardaron cambios
+   */
   void _editProfile() async {
     final result = await Navigator.push(
       context,
@@ -414,6 +484,9 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  /**
+   * Muestra mensaje de funcionalidad en desarrollo para cambio de contraseña
+   */
   void _changePassword() {
     // TODO: Implementar cambio de contraseña
     ScaffoldMessenger.of(context).showSnackBar(
@@ -423,6 +496,9 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  /**
+   * Muestra diálogo con información de ayuda y soporte
+   */
   void _showHelp() {
     showDialog(
       context: context,
@@ -444,6 +520,10 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  /**
+   * Muestra diálogo de confirmación para cerrar sesión
+   * Cierra la sesión del usuario y regresa al login
+   */
   void _logout() {
     showDialog(
       context: context,

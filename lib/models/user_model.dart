@@ -1,3 +1,26 @@
+/**
+ * USER MODEL - MODELO DE DATOS PARA USUARIOS DEL SISTEMA
+ * 
+ * Este archivo define la estructura de datos para usuarios del sistema de citas médicas.
+ * Maneja tanto pacientes como doctores con sus respectivos campos específicos.
+ * 
+ * FUNCIONALIDADES:
+ * - Representación de usuarios (pacientes y doctores)
+ * - Campos específicos para doctores (especialidad, licencia, calificación)
+ * - Campos específicos para pacientes (historial médico, edad)
+ * - Conversión entre Map y objeto (fromMap/toMap)
+ * - Método copyWith para actualizaciones inmutables
+ * 
+ * ESTRUCTURA:
+ * - Campos básicos: id, email, name, phone, profileImage
+ * - Campos de doctor: specialty, licenseNumber, rating, totalAppointments
+ * - Campos de paciente: medicalHistory, age, birthplace
+ * - Métodos de conversión y manipulación
+ * 
+ * VISUALIZACIÓN: Modelo de datos que se utiliza en toda la aplicación
+ * para representar usuarios en la base de datos y la interfaz.
+ */
+
 class UserModel {
   final String id;
   final String email;
@@ -33,6 +56,12 @@ class UserModel {
     this.birthplace,
   });
 
+  /**
+   * Constructor factory para crear UserModel desde un Map
+   * Maneja conversión de fechas desde diferentes formatos (Timestamp, int, DateTime)
+   * @param map - Mapa con los datos del usuario
+   * @return UserModel - Instancia del usuario
+   */
   factory UserModel.fromMap(Map<String, dynamic> map) {
     // Helper para convertir cualquier formato de fecha a DateTime
     DateTime parseDate(dynamic value) {
@@ -66,6 +95,10 @@ class UserModel {
     );
   }
 
+  /**
+   * Convierte el UserModel a un Map para almacenamiento en Firestore
+   * @return Map<String, dynamic> - Mapa con los datos del usuario
+   */
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -86,6 +119,12 @@ class UserModel {
     };
   }
 
+  /**
+   * Crea una copia del UserModel con campos actualizados
+   * Permite actualizaciones inmutables del objeto
+   * @param campos opcionales - Campos a actualizar
+   * @return UserModel - Nueva instancia con campos actualizados
+   */
   UserModel copyWith({
     String? id,
     String? email,
