@@ -28,7 +28,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
-import '../models/appointment_model.dart';
 import '../services/advice_service.dart';
 import 'appointments_page.dart';
 import 'doctors_page.dart';
@@ -316,17 +315,41 @@ class _HomePageState extends State<HomePage> {
   }
 
   /**
-   * Construye la tarjeta de consejos médicos interactiva
-   * Permite a los usuarios obtener orientación sobre qué especialista consultar
-   * @return Widget - Tarjeta con consejos médicos
+   * Carga un consejo médico aleatorio desde Firestore
    */
-  Widget _buildMedicalAdviceCard() {
+  void _loadRandomAdvice() async {
+    final advice = await AdviceService.getRandomAdvice();
+    if (mounted) {
+      setState(() {
+        _randomAdvice = advice;
+      });
+    }
+  }
+  
+  /**
+   * Refresca el consejo periódicamente cada 30 segundos
+   */
+  void _refreshAdvicePeriodically() {
+    Future.delayed(const Duration(seconds: 30), () {
+      if (mounted && _currentIndex == 0) {
+        _loadRandomAdvice();
+        _refreshAdvicePeriodically();
+      }
+    });
+  }
+
+  /**
+   * Construye la tarjeta de consejo médico aleatorio
+   * Muestra un consejo diferente cada vez que se carga la página
+   * @return Widget - Tarjeta con consejo médico aleatorio
+   */
+  Widget _buildRandomAdviceCard() {
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       color: Colors.teal.shade50,
       child: InkWell(
-        onTap: _showMedicalAdvice,
+        onTap: _loadRandomAdvice,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -341,33 +364,33 @@ class _HomePageState extends State<HomePage> {
                       color: Colors.teal.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(Icons.tips_and_updates, color: Colors.teal, size: 24),
+                    child: const Icon(Icons.lightbulb, color: Colors.teal, size: 24),
                   ),
                   const SizedBox(width: 12),
                   const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Consejos Médicos',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                        Text(
-                          '¿No sabes qué médico consultar?',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey,
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      'Consejo del Día',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
                     ),
                   ),
-                  const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.teal),
+                  IconButton(
+                    icon: const Icon(Icons.refresh, size: 20, color: Colors.teal),
+                    onPressed: _loadRandomAdvice,
+                    tooltip: 'Actualizar consejo',
+                  ),
                 ],
               ),
+              const SizedBox(height: 12),
+              Text(
+                _randomAdvice,
+                style: const TextStyle(
+                  fontSize: 14,
+                  height: 1.5,
+                ),
+              ),
             ],
           ),
         ),
@@ -376,157 +399,71 @@ class _HomePageState extends State<HomePage> {
   }
 
   /**
-   * Muestra un diálogo con consejos médicos detallados
-   * Ayuda a los usuarios a decidir qué especialista consultar según sus síntomas
+   * Construye los widgets de estadísticas de citas para pacientes
+   * @return Widget - Tarjetas con estadísticas de citas
    */
-  void _showMedicalAdvice() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.local_hospital, color: Colors.teal),
-            SizedBox(width: 8),
-            Text('Consejos Médicos'),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                '🤔 ¿No sabes qué médico consultar?',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const Divider(height: 24),
-              
-              _buildAdviceItem(
-                emoji: '🌮',
-                problem: 'Si comiste tacos de la esquina y te cayeron mal',
-                advice: 'Ve con un Médico General',
-                specialty: 'Medicina General',
-              ),
-              
-              _buildAdviceItem(
-                emoji: '🐸',
-                problem: 'Si te besó el sapo y ahora tienes calentura',
-                advice: 'Ve con un Médico General o Infectólogo',
-                specialty: 'Medicina General',
-              ),
-              
-              _buildAdviceItem(
-                emoji: '❤️',
-                problem: 'Si sientes que tu corazón late diferente',
-                advice: 'Ve con un Cardiólogo',
-                specialty: 'Cardiología',
-              ),
-              
-              _buildAdviceItem(
-                emoji: '👶',
-                problem: 'Si tu bebé tiene fiebre o malestar',
-                advice: 'Ve con un Pediatra',
-                specialty: 'Pediatría',
-              ),
-              
-              _buildAdviceItem(
-                emoji: '👁️',
-                problem: 'Si ves borroso o te duelen los ojos',
-                advice: 'Ve con un Oftalmólogo',
-                specialty: 'Oftalmología',
-              ),
-              
-              _buildAdviceItem(
-                emoji: '🦴',
-                problem: 'Si te duelen los huesos o articulaciones',
-                advice: 'Ve con un Ortopedista',
-                specialty: 'Ortopedia',
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cerrar'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              setState(() => _currentIndex = 2); // Ir a Doctores
-            },
-            child: const Text('Ver Doctores'),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildAppointmentStats() {
+    final User? currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      return const SizedBox.shrink();
+    }
 
-  /**
-   * Construye un elemento individual de consejo médico
-   * @param emoji - Emoji representativo del problema
-   * @param problem - Descripción del problema/síntoma
-   * @param advice - Consejo médico específico
-   * @param specialty - Especialidad médica recomendada
-   * @return Widget - Elemento de consejo médico
-   */
-  Widget _buildAdviceItem({
-    required String emoji,
-    required String problem,
-    required String advice,
-    required String specialty,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.grey.shade50,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey.shade300),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return StreamBuilder<QuerySnapshot>(
+      stream: _firestore
+          .collection('citas')
+          .where('patientId', isEqualTo: currentUser.uid)
+          .snapshots(),
+      builder: (context, snapshot) {
+        int totalCitas = 0;
+        int pendientesPorConfirmar = 0;
+
+        if (snapshot.hasData) {
+          final appointments = snapshot.data!.docs;
+          totalCitas = appointments.length;
+          
+          final now = DateTime.now();
+          pendientesPorConfirmar = appointments.where((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            final status = data['status'] as String?;
+            final appointmentDate = data['appointmentDate'];
+            
+            DateTime date;
+            if (appointmentDate is int) {
+              date = DateTime.fromMillisecondsSinceEpoch(appointmentDate);
+            } else {
+              try {
+                date = (appointmentDate as dynamic).toDate();
+              } catch (e) {
+                return false;
+              }
+            }
+            
+            return status == 'pending' && date.isAfter(now);
+          }).length;
+        }
+
+        return Row(
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  emoji,
-                  style: const TextStyle(fontSize: 24),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        problem,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '→ $advice',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.teal,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+            Expanded(
+              child: _buildStatCard(
+                "Total Citas",
+                "$totalCitas",
+                Icons.calendar_today,
+                Colors.blue,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildStatCard(
+                "Pendientes",
+                "$pendientesPorConfirmar",
+                Icons.pending_actions,
+                Colors.orange,
+              ),
             ),
           ],
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -587,20 +524,20 @@ class _HomePageState extends State<HomePage> {
         },
         selectedItemColor: Colors.indigo,
         unselectedItemColor: Colors.grey,
-        items: [
-          const BottomNavigationBarItem(
+        items: const [
+          BottomNavigationBarItem(
             icon: Icon(Icons.home),
             label: 'Inicio',
           ),
-          const BottomNavigationBarItem(
+          BottomNavigationBarItem(
             icon: Icon(Icons.calendar_today),
             label: 'Citas',
           ),
-          const BottomNavigationBarItem(
+          BottomNavigationBarItem(
             icon: Icon(Icons.medical_services),
             label: 'Doctores',
           ),
-          const BottomNavigationBarItem(
+          BottomNavigationBarItem(
             icon: Icon(Icons.person),
             label: 'Perfil',
           ),
@@ -610,7 +547,6 @@ class _HomePageState extends State<HomePage> {
           ? FloatingActionButton.extended(
               onPressed: () {
                 if (widget.user.isDoctor) {
-                  // Para doctores: gestionar horarios
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -618,7 +554,6 @@ class _HomePageState extends State<HomePage> {
                     ),
                   );
                 } else {
-                  // Para pacientes: agendar cita
                   Navigator.push(
                     context,
                     MaterialPageRoute(

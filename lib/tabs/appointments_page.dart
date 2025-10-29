@@ -161,38 +161,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          // Obtener datos del usuario actual
-          User? currentUser = _auth.currentUser;
-          if (currentUser != null) {
-            try {
-              final userDoc = await _firestore
-                  .collection('usuarios')
-                  .doc(currentUser.uid)
-                  .get();
-              
-              if (userDoc.exists) {
-                final userData = userDoc.data()!;
-                final user = UserModel.fromMap(userData);
-                
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => CreateAppointmentPage(patient: user),
-                  ),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("No se encontraron datos del usuario")),
-                );
-              }
-            } catch (e) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text("Error: $e")),
-              );
-            }
-          }
-        },
+        onPressed: _showCreateOrEditDialog,
         child: const Icon(Icons.add),
         backgroundColor: Colors.indigo,
         tooltip: 'Agendar o editar cita',
@@ -613,7 +582,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
               const Divider(),
               const Text(
                 "Editar Cita Existente:",
-                style: const TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               SizedBox(

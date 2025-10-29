@@ -39,7 +39,7 @@ class AdviceService {
 
   /**
    * Inicializa la colección con 50 consejos médicos si no existe
-   * Este método debería creationa ejecutarse una vez desde la consola de Firebase o desde admin tools
+   * Este método debería ejecutarse una vez desde la consola de Firebase o desde admin tools
    */
   static Future<void> initializeAdvices() async {
     final List<String> consejos = [
@@ -79,7 +79,7 @@ class AdviceService {
       'Practica la meditación o mindfulness para reducir ansiedad.',
       'Mantén tu casa bien ventilada para mejorar la calidad del aire.',
       'Limpia y desinfecta regularmente las superficies que tocas frecuentemente.',
-      'Usa zapatos cómodos y adecuados para acivar tu actividad.',
+      'Usa zapatos cómodos y adecuados para tu actividad.',
       'Realiza ejercicios de fuerza al menos 2 veces por semana.',
       'Consume alimentos probióticos para mejorar tu salud digestiva.',
       'Evita saltarte comidas; come en horarios regulares.',
