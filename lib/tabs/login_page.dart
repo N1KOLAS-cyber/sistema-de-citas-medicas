@@ -96,11 +96,11 @@ final FirebaseAuth _auth = FirebaseAuth.instance;
       Navigator.of(context).pop(); // Cerrar loading
       String message = "";
       if (e.code == 'user-not-found') {
-        message = 'Usuario no encontrado';
+        message = 'Correo o contraseña inválidos';
       } else if (e.code == 'wrong-password') {
-        message = 'Contraseña incorrecta';
+        message = 'Correo o contraseña inválidos';
       } else if (e.code == 'invalid-email') {
-        message = 'Correo electrónico inválido';
+        message = 'Correo o contraseña inválidos';
       } else if (e.code == 'user-disabled') {
         message = 'Usuario deshabilitado';
       } else {

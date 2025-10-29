@@ -27,7 +27,7 @@ class PrivacyTermsPage extends StatelessWidget {
               ),
             ),
             const Text(
-              'NERV - Sistema de Citas Médicas',
+              'MedCitas - Sistema de Citas Médicas',
               style: TextStyle(
                 fontSize: 16,
                 color: Colors.grey,
@@ -38,7 +38,7 @@ class PrivacyTermsPage extends StatelessWidget {
             // Sección 1: Introducción
             _buildSection(
               title: '1. Introducción',
-              content: 'Al utilizar NERV - Sistema de Citas Médicas, usted acepta los presentes '
+              content: 'Al utilizar MedCitas - Sistema de Citas Médicas, usted acepta los presentes '
                   'términos y condiciones. Este sistema está diseñado para facilitar la comunicación '
                   'entre pacientes y profesionales de la salud, garantizando la privacidad y seguridad '
                   'de su información médica.',
@@ -47,7 +47,7 @@ class PrivacyTermsPage extends StatelessWidget {
             // Sección 2: Recopilación de Datos
             _buildSection(
               title: '2. Recopilación de Datos Personales',
-              content: 'NERV recopila y almacena la siguiente información:\n\n'
+              content: 'MedCitas recopila y almacena la siguiente información:\n\n'
                   '• Datos de identificación: Nombre completo, correo electrónico, número de teléfono\n'
                   '• Información médica: Historial médico, enfermedades, alergias, padecimientos\n'
                   '• Datos de citas: Fechas, horarios, síntomas reportados, diagnósticos\n'

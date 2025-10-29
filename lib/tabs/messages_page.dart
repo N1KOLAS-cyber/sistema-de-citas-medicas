@@ -230,7 +230,7 @@ class _MessagesPageState extends State<MessagesPage> {
                     ),
                   ),
                   child: const Text(
-                    "¡Hola! 👋 Soy el asistente médico de NERV. ¿En qué puedo ayudarte hoy?",
+                    "¡Hola! 👋 Soy el asistente médico de MedCitas. ¿En qué puedo ayudarte hoy?",
                     style: TextStyle(
                       color: Colors.black87,
                       fontSize: 13,

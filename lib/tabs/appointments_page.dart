@@ -29,6 +29,7 @@ import '../models/appointment_model.dart';
 import '../models/user_model.dart';
 import 'create_appointment_page.dart';
 import 'messages_page.dart';
+import 'doctor_appointments_page.dart';
 
 class AppointmentsPage extends StatefulWidget {
   const AppointmentsPage({super.key});
@@ -41,9 +42,81 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   String _selectedFilter = 'Todas'; // Por defecto mostrar todas las citas
+  bool _isDoctor = false;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkUserType();
+  }
+
+  /**
+   * Verifica si el usuario actual es doctor
+   */
+  Future<void> _checkUserType() async {
+    User? currentUser = _auth.currentUser;
+    if (currentUser != null) {
+      try {
+        final userDoc = await _firestore
+            .collection('usuarios')
+            .doc(currentUser.uid)
+            .get();
+        
+        if (userDoc.exists) {
+          final userData = userDoc.data()!;
+          final isDoctor = userData['isDoctor'] ?? false;
+          
+          if (mounted) {
+            setState(() {
+              _isDoctor = isDoctor;
+              _isLoading = false;
+            });
+          }
+        } else {
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+            });
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
+    } else {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    // Si está cargando, mostrar indicador de carga
+    if (_isLoading) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text("Mis Citas"),
+          backgroundColor: Colors.indigo,
+          foregroundColor: Colors.white,
+          elevation: 2,
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // Si es doctor, mostrar la página de gestión de citas para doctores
+    if (_isDoctor) {
+      return const DoctorAppointmentsPage();
+    }
+
+    // Si es paciente, mostrar la página de citas normal
     return Scaffold(
       appBar: AppBar(
         title: const Text("Mis Citas"),
@@ -134,6 +207,9 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
               .map((doc) => AppointmentModel.fromMap(doc.data() as Map<String, dynamic>))
               .toList();
 
+          // Ordenar por fecha en memoria (más recientes primero)
+          appointments.sort((a, b) => b.appointmentDate.compareTo(a.appointmentDate));
+
           // Filtrar citas según el filtro seleccionado
           if (_selectedFilter == 'Próximas') {
             // Mostrar solo citas futuras (pendientes o confirmadas)
@@ -185,10 +261,10 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
     }
 
     // Filtrar citas donde el usuario es paciente
+    // Removemos orderBy para evitar necesidad de índice compuesto, ordenamos en memoria
     return _firestore
         .collection('citas')
         .where('patientId', isEqualTo: currentUser.uid)
-        .orderBy('appointmentDate', descending: false)
         .snapshots();
   }
 
@@ -424,21 +500,66 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
             onPressed: () => Navigator.of(context).pop(),
             child: const Text("No"),
           ),
-          TextButton(
+          ElevatedButton(
             onPressed: () async {
-              // TODO: Implementar cancelación de cita
               Navigator.of(context).pop();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text("Función de cancelación en desarrollo"),
-                ),
-              );
+              await _performCancelAppointment(appointment);
             },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
             child: const Text("Sí, Cancelar"),
           ),
         ],
       ),
     );
+  }
+
+  /**
+   * Realiza la cancelación de una cita
+   * @param appointment - Cita a cancelar
+   */
+  Future<void> _performCancelAppointment(AppointmentModel appointment) async {
+    try {
+      // Mostrar indicador de carga
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      // Actualizar el estado en Firestore marcando que fue cancelada por el paciente
+      await _firestore.collection('citas').doc(appointment.id).update({
+        'status': 'cancelled',
+        'cancelledBy': 'patient',
+        'updatedAt': DateTime.now().millisecondsSinceEpoch,
+      });
+
+      // Cerrar indicador de carga
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Cita cancelada exitosamente"),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      // Cerrar indicador de carga si hay error
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Error al cancelar cita: $e"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   /**
@@ -535,17 +656,20 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
       final user = UserModel.fromMap(userData);
 
       // Obtener citas editables (pendientes o confirmadas, futuras)
+      // Removemos orderBy para evitar necesidad de índice compuesto, ordenamos en memoria
       final appointmentsSnapshot = await _firestore
           .collection('citas')
           .where('patientId', isEqualTo: currentUser.uid)
           .where('status', whereIn: ['pending', 'confirmed'])
-          .orderBy('appointmentDate', descending: false)
           .get();
 
       List<AppointmentModel> editableAppointments = appointmentsSnapshot.docs
           .map((doc) => AppointmentModel.fromMap(doc.data()))
           .where((appointment) => appointment.appointmentDate.isAfter(DateTime.now()))
           .toList();
+      
+      // Ordenar por fecha en memoria
+      editableAppointments.sort((a, b) => a.appointmentDate.compareTo(b.appointmentDate));
 
       if (editableAppointments.isEmpty) {
         // Si no hay citas editables, ir directamente a crear nueva cita

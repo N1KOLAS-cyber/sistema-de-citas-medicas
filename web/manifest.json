@@ -1,11 +1,11 @@
 {
-    "name": "sistema_citas_medicas",
-    "short_name": "sistema_citas_medicas",
+    "name": "MedCitas - Sistema de Citas Médicas",
+    "short_name": "MedCitas",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Sistema de Citas Médicas - Gestión eficiente de citas entre pacientes y profesionales de la salud",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

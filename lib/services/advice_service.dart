@@ -7,6 +7,7 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:math';
+import 'dart:async';
 
 class AdviceService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -18,10 +19,21 @@ class AdviceService {
    */
   static Future<String> getRandomAdvice() async {
     try {
-      // Obtener todos los consejos
-      final snapshot = await _firestore.collection(_adviceCollection).get();
+      // Obtener todos los consejos con timeout
+      final snapshot = await _firestore
+          .collection(_adviceCollection)
+          .limit(100) // Limitar para evitar cargar demasiados datos
+          .get()
+          .timeout(
+            const Duration(seconds: 5),
+            onTimeout: () {
+              throw TimeoutException('Tiempo de espera agotado al cargar consejos');
+            },
+          );
       
       if (snapshot.docs.isEmpty) {
+        // Si no hay consejos, retornar consejo por defecto inmediatamente
+        // No intentar inicializar automáticamente porque requiere permisos de escritura
         return 'Mantén un estilo de vida saludable con ejercicio regular y una dieta balanceada.';
       }
 
@@ -30,10 +42,29 @@ class AdviceService {
       final randomIndex = random.nextInt(snapshot.docs.length);
       final randomDoc = snapshot.docs[randomIndex];
       
-      return randomDoc.data()['consejo'] ?? 'Cuida tu salud visitando al médico regularmente.';
+      final consejo = randomDoc.data()['consejo'];
+      if (consejo == null || consejo.toString().isEmpty) {
+        return 'Cuida tu salud visitando al médico regularmente.';
+      }
+      
+      return consejo.toString();
+    } on TimeoutException {
+      // En caso de timeout, retornar un consejo por defecto
+      print('Timeout al cargar consejos médicos');
+      return 'La prevención es la mejor medicina. Realiza chequeos médicos regulares.';
     } catch (e) {
       // En caso de error, retornar un consejo por defecto
-      return 'La prevención es la mejor medicina. Realiza chequeos médicos regulares.';
+      print('Error al obtener consejo: $e');
+      // Retornar un consejo por defecto que siempre esté disponible
+      final defaultAdvices = [
+        'Mantén un estilo de vida saludable con ejercicio regular y una dieta balanceada.',
+        'La prevención es la mejor medicina. Realiza chequeos médicos regulares.',
+        'Cuida tu salud visitando al médico regularmente.',
+        'Duerme bien, come saludable y haz ejercicio para mantenerte sano.',
+        'El agua es esencial para tu organismo, bebe al menos 8 vasos al día.',
+      ];
+      final random = Random();
+      return defaultAdvices[random.nextInt(defaultAdvices.length)];
     }
   }
 

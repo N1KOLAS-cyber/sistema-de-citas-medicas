@@ -273,7 +273,7 @@ class _SimpleLoginPageState extends State<SimpleLoginPage> {
               const SizedBox(height: 16),
               // --- NOMBRE DE LA APP ---
               const Text(
-                "NERV",
+                "MedCitas",
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,

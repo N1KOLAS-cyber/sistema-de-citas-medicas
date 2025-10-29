@@ -607,6 +607,8 @@ class _DoctorsPageState extends State<DoctorsPage> {
    * @param rating - Puntuación dada (1-5)
    */
   void _submitRating(UserModel doctor, double rating) async {
+    if (!mounted) return;
+    
     try {
       // Mostrar indicador de carga
       showDialog(
@@ -620,6 +622,7 @@ class _DoctorsPageState extends State<DoctorsPage> {
       // Obtener datos del usuario actual
       User? currentUser = _auth.currentUser;
       if (currentUser == null) {
+        if (!mounted) return;
         Navigator.of(context).pop(); // Cerrar loading
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -635,7 +638,6 @@ class _DoctorsPageState extends State<DoctorsPage> {
       
       if (!mounted) return;
       Navigator.of(context).pop(); // Cerrar loading
-      Navigator.of(context).pop(); // Cerrar diálogo de puntuación
       
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -645,8 +647,12 @@ class _DoctorsPageState extends State<DoctorsPage> {
       );
     } catch (e) {
       if (mounted) {
-        Navigator.of(context).pop(); // Cerrar loading
-        Navigator.of(context).pop(); // Cerrar diálogo de puntuación
+        // Asegurarse de cerrar el loading si está abierto
+        try {
+          Navigator.of(context).pop(); // Cerrar loading
+        } catch (_) {
+          // Si ya estaba cerrado, ignorar el error
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text("Error al enviar puntuación: $e"),
@@ -664,26 +670,64 @@ class _DoctorsPageState extends State<DoctorsPage> {
    */
   Future<void> _updateDoctorRating(String doctorId, double newRating) async {
     try {
-      // Obtener datos actuales del doctor
-      final doctorDoc = await _firestore.collection('usuarios').doc(doctorId).get();
-      if (!doctorDoc.exists) {
-        throw Exception('Doctor no encontrado');
+      User? currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('Usuario no autenticado');
       }
 
-      final doctorData = doctorDoc.data()!;
-      final currentRating = doctorData['rating']?.toDouble() ?? 0.0;
-      final totalAppointments = doctorData['totalAppointments'] ?? 0;
+      // Usar una subcolección de calificaciones para evitar problemas de permisos
+      // Cada calificación se guarda como un documento separado
+      final ratingDocRef = _firestore
+          .collection('usuarios')
+          .doc(doctorId)
+          .collection('ratings')
+          .doc();
       
-      // Calcular nueva calificación promedio
-      final newTotalAppointments = totalAppointments + 1;
-      final newAverageRating = ((currentRating * totalAppointments) + newRating) / newTotalAppointments;
-
-      // Actualizar en Firestore
-      await _firestore.collection('usuarios').doc(doctorId).update({
-        'rating': newAverageRating,
-        'totalAppointments': newTotalAppointments,
-        'updatedAt': DateTime.now().millisecondsSinceEpoch,
+      // Guardar la calificación individual
+      await ratingDocRef.set({
+        'rating': newRating,
+        'userId': currentUser.uid,
+        'createdAt': FieldValue.serverTimestamp(),
       });
+
+      // Calcular el promedio leyendo todas las calificaciones
+      final ratingsSnapshot = await _firestore
+          .collection('usuarios')
+          .doc(doctorId)
+          .collection('ratings')
+          .get();
+
+      if (ratingsSnapshot.docs.isEmpty) {
+        throw Exception('No se pudo obtener las calificaciones');
+      }
+
+      double totalRating = 0.0;
+      int count = 0;
+      
+      for (var doc in ratingsSnapshot.docs) {
+        final data = doc.data();
+        final rating = data['rating'];
+        if (rating != null) {
+          totalRating += (rating as num).toDouble();
+          count++;
+        }
+      }
+
+      final averageRating = count > 0 ? totalRating / count : 0.0;
+
+      // Actualizar el promedio en el documento del doctor
+      // Esto requiere permisos, pero al menos intentamos actualizar
+      try {
+        await _firestore.collection('usuarios').doc(doctorId).update({
+          'rating': averageRating,
+          'totalAppointments': count,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      } catch (updateError) {
+        // Si falla la actualización del promedio, al menos guardamos la calificación
+        // El promedio se puede recalcular cuando se lea
+        print('Error al actualizar promedio, pero la calificación se guardó: $updateError');
+      }
     } catch (e) {
       throw Exception('Error al actualizar calificación: $e');
     }
@@ -762,8 +806,10 @@ class _RatingDialogState extends State<_RatingDialog> {
         ElevatedButton(
           onPressed: currentRating > 0 
               ? () {
-                  widget.onSubmit(widget.doctor, currentRating);
+                  // Cerrar diálogo primero
                   Navigator.of(context).pop();
+                  // Luego enviar la puntuación
+                  widget.onSubmit(widget.doctor, currentRating);
                 }
               : null,
           style: ElevatedButton.styleFrom(

@@ -197,21 +197,60 @@ class _DoctorAppointmentsPageState extends State<DoctorAppointmentsPage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: statusColor.withOpacity(0.3)),
-                  ),
-                  child: Text(
-                    appointment.statusText,
-                    style: TextStyle(
-                      color: statusColor,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: statusColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: statusColor.withOpacity(0.3)),
+                      ),
+                      child: Text(
+                        appointment.statusText,
+                        style: TextStyle(
+                          color: statusColor,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
                     ),
-                  ),
+                    // Mostrar quién canceló la cita si está cancelada
+                    if (appointment.status == AppointmentStatus.cancelled && 
+                        appointment.cancelledBy != null) ...[
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              size: 12,
+                              color: Colors.orange[700],
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              appointment.cancelledBy == 'patient' 
+                                  ? 'Cancelada por paciente'
+                                  : 'Cancelada por ti',
+                              style: TextStyle(
+                                color: Colors.orange[700],
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 Text(
                   appointment.typeText,
@@ -523,7 +562,11 @@ class _DoctorAppointmentsPageState extends State<DoctorAppointmentsPage> {
             onPressed: () async {
               Navigator.of(context).pop();
               try {
-                await _updateAppointmentStatus(appointment.id, AppointmentStatus.cancelled);
+                await _updateAppointmentStatus(
+                  appointment.id, 
+                  AppointmentStatus.cancelled,
+                  cancelledBy: 'doctor',
+                );
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -558,8 +601,13 @@ class _DoctorAppointmentsPageState extends State<DoctorAppointmentsPage> {
    * Actualiza el estado de una cita en Firestore
    * @param appointmentId - ID de la cita
    * @param newStatus - Nuevo estado de la cita
+   * @param cancelledBy - Opcional: quién canceló la cita ('patient' o 'doctor')
    */
-  Future<void> _updateAppointmentStatus(String appointmentId, AppointmentStatus newStatus) async {
+  Future<void> _updateAppointmentStatus(
+    String appointmentId, 
+    AppointmentStatus newStatus, {
+    String? cancelledBy,
+  }) async {
     try {
       // Mostrar indicador de carga
       showDialog(
@@ -570,11 +618,19 @@ class _DoctorAppointmentsPageState extends State<DoctorAppointmentsPage> {
         ),
       );
 
-      // Actualizar el estado en Firestore
-      await _firestore.collection('citas').doc(appointmentId).update({
+      // Preparar los datos a actualizar
+      final Map<String, dynamic> updateData = {
         'status': newStatus.name,
         'updatedAt': DateTime.now().millisecondsSinceEpoch,
-      });
+      };
+      
+      // Si se está cancelando, agregar información de quién canceló
+      if (newStatus == AppointmentStatus.cancelled && cancelledBy != null) {
+        updateData['cancelledBy'] = cancelledBy;
+      }
+
+      // Actualizar el estado en Firestore
+      await _firestore.collection('citas').doc(appointmentId).update(updateData);
 
       // Cerrar indicador de carga
       if (mounted) {

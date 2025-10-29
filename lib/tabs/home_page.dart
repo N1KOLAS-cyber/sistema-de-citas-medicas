@@ -24,10 +24,12 @@
  * tarjetas informativas y navegación intuitiva.
  */
 
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
+import '../models/appointment_model.dart';
 import '../services/advice_service.dart';
 import 'appointments_page.dart';
 import 'doctors_page.dart';
@@ -48,7 +50,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _currentIndex = 0;
-  String _randomAdvice = 'Cargando consejo...';
+  String _randomAdvice = 'La prevención es la mejor medicina. Realiza chequeos médicos regulares.';
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
@@ -57,8 +59,6 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _loadRandomAdvice();
-    _refreshAdvicePeriodically();
     // Inicializar las páginas del tab navigation
     _pages.addAll([
       _buildHomePage(), // Página principal personalizada
@@ -66,6 +66,11 @@ class _HomePageState extends State<HomePage> {
       const DoctorsPage(), // Página de doctores
       ProfilePage(user: widget.user), // Página de perfil del usuario
     ]);
+    // Cargar consejo después de que el widget está montado
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadRandomAdvice();
+      _refreshAdvicePeriodically();
+    });
   }
 
   /**
@@ -119,49 +124,64 @@ class _HomePageState extends State<HomePage> {
               ),
               const SizedBox(height: 24),
 
-              // Estadísticas rápidas
-              if (widget.user.isDoctor) ...[
-                const Text(
-                  "Estadísticas",
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildStatCard(
-                        "Citas Totales",
-                        "${widget.user.totalAppointments ?? 0}",
-                        Icons.calendar_today,
-                        Colors.blue,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _buildStatCard(
-                        "Calificación",
-                        "${widget.user.rating?.toStringAsFixed(1) ?? '0.0'} ⭐",
-                        Icons.star,
-                        Colors.orange,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-              ],
-
               // Widget de Consejo Aleatorio
               _buildRandomAdviceCard(),
               const SizedBox(height: 24),
 
-              // Estadísticas de Citas (solo para pacientes)
-              if (!widget.user.isDoctor) ...[
-                _buildAppointmentStats(),
-                const SizedBox(height: 24),
-              ],
+              // Estadísticas de Citas (para pacientes y doctores)
+              widget.user.isDoctor
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Estadísticas",
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildStatCard(
+                                "Citas Totales",
+                                "${widget.user.totalAppointments ?? 0}",
+                                Icons.calendar_today,
+                                Colors.blue,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: _buildStatCard(
+                                "Calificación",
+                                "${widget.user.rating?.toStringAsFixed(1) ?? '0.0'} ⭐",
+                                Icons.star,
+                                Colors.orange,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        _buildDoctorAppointmentStats(),
+                        const SizedBox(height: 24),
+                      ],
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Mis Citas",
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        _buildAppointmentStats(),
+                        const SizedBox(height: 24),
+                      ],
+                    ),
 
               // Acciones rápidas
               const Text(
@@ -318,11 +338,168 @@ class _HomePageState extends State<HomePage> {
    * Carga un consejo médico aleatorio desde Firestore
    */
   void _loadRandomAdvice() async {
-    final advice = await AdviceService.getRandomAdvice();
-    if (mounted) {
-      setState(() {
-        _randomAdvice = advice;
-      });
+    if (!mounted) return;
+    
+    try {
+      final advice = await AdviceService.getRandomAdvice();
+      if (mounted && advice.isNotEmpty) {
+        setState(() {
+          _randomAdvice = advice;
+        });
+      }
+    } catch (e) {
+      // Si hay algún error, mostrar un consejo por defecto aleatorio
+      if (mounted) {
+        final defaultAdvices = [
+          'La prevención es la mejor medicina. Realiza chequeos médicos regulares.',
+          'Mantén un estilo de vida saludable con ejercicio regular y una dieta balanceada.',
+          'Cuida tu salud visitando al médico regularmente.',
+          'Duerme bien, come saludable y haz ejercicio para mantenerte sano.',
+          'El agua es esencial para tu organismo, bebe al menos 8 vasos al día.',
+        ];
+        final random = Random();
+        setState(() {
+          _randomAdvice = defaultAdvices[random.nextInt(defaultAdvices.length)];
+        });
+      }
+    }
+  }
+
+  /**
+   * Muestra un diálogo para editar citas existentes
+   */
+  void _showEditAppointmentDialog() async {
+    User? currentUser = _auth.currentUser;
+    if (currentUser == null) return;
+
+    try {
+      final userDoc = await _firestore
+          .collection('usuarios')
+          .doc(currentUser.uid)
+          .get();
+      
+      if (!userDoc.exists) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("No se encontraron datos del usuario")),
+        );
+        return;
+      }
+
+      final userData = userDoc.data()!;
+      final user = UserModel.fromMap(userData);
+
+      // Obtener citas editables (pendientes o confirmadas, futuras)
+      final appointmentsSnapshot = await _firestore
+          .collection('citas')
+          .where('patientId', isEqualTo: currentUser.uid)
+          .where('status', whereIn: ['pending', 'confirmed'])
+          .get();
+
+      List<AppointmentModel> editableAppointments = appointmentsSnapshot.docs
+          .map((doc) => AppointmentModel.fromMap(doc.data()))
+          .where((appointment) => appointment.appointmentDate.isAfter(DateTime.now()))
+          .toList();
+      
+      // Ordenar por fecha en memoria
+      editableAppointments.sort((a, b) => a.appointmentDate.compareTo(b.appointmentDate));
+
+      if (editableAppointments.isEmpty) {
+        // Si no hay citas editables, mostrar mensaje
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("No tienes citas editables en este momento"),
+            duration: Duration(seconds: 3),
+          ),
+        );
+        return;
+      }
+
+      // Mostrar diálogo con lista de citas para editar
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text("Editar Cita"),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: editableAppointments.length,
+              itemBuilder: (context, index) {
+                final appointment = editableAppointments[index];
+                return ListTile(
+                  leading: const Icon(Icons.edit, color: Colors.orange),
+                  title: Text(
+                    'Dr. ${appointment.doctorName}',
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(
+                    '${_formatAppointmentDate(appointment.appointmentDate)} - ${appointment.timeSlot}\n'
+                    'Estado: ${appointment.statusText}',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    _editAppointment(appointment, user);
+                  },
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text("Cancelar"),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e")),
+      );
+    }
+  }
+
+  /**
+   * Formatea una fecha de cita para mostrar
+   */
+  String _formatAppointmentDate(DateTime date) {
+    return "${date.day}/${date.month}/${date.year}";
+  }
+
+  /**
+   * Abre la página de edición de una cita
+   */
+  void _editAppointment(AppointmentModel appointment, UserModel user) async {
+    try {
+      final doctorDoc = await _firestore
+          .collection('usuarios')
+          .doc(appointment.doctorId)
+          .get();
+      
+      if (doctorDoc.exists) {
+        final doctorData = doctorDoc.data()!;
+        final doctor = UserModel.fromMap(doctorData);
+        
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => CreateAppointmentPage(
+              patient: user,
+              preselectedDoctor: doctor,
+              editingAppointment: appointment,
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("No se encontró información del doctor")),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error al editar cita: $e")),
+      );
     }
   }
   
@@ -417,7 +594,7 @@ class _HomePageState extends State<HomePage> {
         int totalCitas = 0;
         int pendientesPorConfirmar = 0;
 
-        if (snapshot.hasData) {
+        if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
           final appointments = snapshot.data!.docs;
           totalCitas = appointments.length;
           
@@ -430,6 +607,8 @@ class _HomePageState extends State<HomePage> {
             DateTime date;
             if (appointmentDate is int) {
               date = DateTime.fromMillisecondsSinceEpoch(appointmentDate);
+            } else if (appointmentDate is DateTime) {
+              date = appointmentDate;
             } else {
               try {
                 date = (appointmentDate as dynamic).toDate();
@@ -438,8 +617,35 @@ class _HomePageState extends State<HomePage> {
               }
             }
             
-            return status == 'pending' && date.isAfter(now);
+            // Contar citas pendientes o confirmadas que sean futuras
+            return (status == 'pending' || status == 'confirmed') && 
+                   date.isAfter(now.subtract(const Duration(seconds: 1)));
           }).length;
+        }
+
+        // Mostrar indicador de carga mientras se obtienen los datos
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Row(
+            children: [
+              Expanded(
+                child: _buildStatCard(
+                  "Total Citas",
+                  "...",
+                  Icons.calendar_today,
+                  Colors.blue,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildStatCard(
+                  "Pendientes",
+                  "...",
+                  Icons.pending_actions,
+                  Colors.orange,
+                ),
+              ),
+            ],
+          );
         }
 
         return Row(
@@ -457,6 +663,85 @@ class _HomePageState extends State<HomePage> {
               child: _buildStatCard(
                 "Pendientes",
                 "$pendientesPorConfirmar",
+                Icons.pending_actions,
+                Colors.orange,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /**
+   * Construye los widgets de estadísticas de citas para doctores
+   * Muestra las citas pendientes que deben aceptar
+   * @return Widget - Tarjetas con estadísticas de citas
+   */
+  Widget _buildDoctorAppointmentStats() {
+    final User? currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      return const SizedBox.shrink();
+    }
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: _firestore
+          .collection('citas')
+          .where('doctorId', isEqualTo: currentUser.uid)
+          .snapshots(),
+      builder: (context, snapshot) {
+        int pendientesAceptar = 0;
+
+        if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
+          final appointments = snapshot.data!.docs;
+          
+          final now = DateTime.now();
+          pendientesAceptar = appointments.where((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            final status = data['status'] as String?;
+            final appointmentDate = data['appointmentDate'];
+            
+            DateTime date;
+            if (appointmentDate is int) {
+              date = DateTime.fromMillisecondsSinceEpoch(appointmentDate);
+            } else if (appointmentDate is DateTime) {
+              date = appointmentDate;
+            } else {
+              try {
+                date = (appointmentDate as dynamic).toDate();
+              } catch (e) {
+                return false;
+              }
+            }
+            
+            // Contar solo citas pendientes que sean futuras (que el doctor debe aceptar)
+            return status == 'pending' && 
+                   date.isAfter(now.subtract(const Duration(seconds: 1)));
+          }).length;
+        }
+
+        // Mostrar indicador de carga mientras se obtienen los datos
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Row(
+            children: [
+              Expanded(
+                child: _buildStatCard(
+                  "Citas Pendientes",
+                  "...",
+                  Icons.pending_actions,
+                  Colors.orange,
+                ),
+              ),
+            ],
+          );
+        }
+
+        return Row(
+          children: [
+            Expanded(
+              child: _buildStatCard(
+                "Citas Pendientes",
+                "$pendientesAceptar",
                 Icons.pending_actions,
                 Colors.orange,
               ),
@@ -543,36 +828,40 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
-      floatingActionButton: _currentIndex == 0
+      floatingActionButton: _currentIndex == 0 && !widget.user.isDoctor
           ? FloatingActionButton.extended(
-              onPressed: () {
-                if (widget.user.isDoctor) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => DoctorAvailabilityPage(doctor: widget.user),
-                    ),
-                  );
-                } else {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => CreateAppointmentPage(patient: widget.user),
-                    ),
-                  );
-                }
-              },
+              onPressed: _showEditAppointmentDialog,
               backgroundColor: Colors.indigo,
-              icon: Icon(
-                widget.user.isDoctor ? Icons.access_time : Icons.add,
+              icon: const Icon(
+                Icons.edit,
                 color: Colors.white,
               ),
-              label: Text(
-                widget.user.isDoctor ? 'Horarios' : 'Nueva Cita',
-                style: const TextStyle(color: Colors.white),
+              label: const Text(
+                'Editar Cita',
+                style: TextStyle(color: Colors.white),
               ),
             )
-          : null,
+          : _currentIndex == 0 && widget.user.isDoctor
+              ? FloatingActionButton.extended(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => DoctorAvailabilityPage(doctor: widget.user),
+                      ),
+                    );
+                  },
+                  backgroundColor: Colors.indigo,
+                  icon: const Icon(
+                    Icons.access_time,
+                    color: Colors.white,
+                  ),
+                  label: const Text(
+                    'Horarios',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                )
+              : null,
     );
   }
 }

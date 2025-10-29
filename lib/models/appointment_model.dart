@@ -54,6 +54,7 @@ class AppointmentModel {
   final double? cost;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String? cancelledBy; // 'patient' o 'doctor' - quién canceló la cita
 
   AppointmentModel({
     required this.id,
@@ -73,6 +74,7 @@ class AppointmentModel {
     this.cost,
     required this.createdAt,
     required this.updatedAt,
+    this.cancelledBy,
   });
 
   /**
@@ -118,6 +120,7 @@ class AppointmentModel {
       cost: map['cost']?.toDouble(),
       createdAt: parseDate(map['createdAt']),
       updatedAt: parseDate(map['updatedAt']),
+      cancelledBy: map['cancelledBy'],
     );
   }
 
@@ -144,6 +147,7 @@ class AppointmentModel {
       'cost': cost,
       'createdAt': createdAt.millisecondsSinceEpoch,
       'updatedAt': updatedAt.millisecondsSinceEpoch,
+      'cancelledBy': cancelledBy,
     };
   }
 
@@ -165,6 +169,7 @@ class AppointmentModel {
     double? cost,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? cancelledBy,
   }) {
     return AppointmentModel(
       id: id ?? this.id,
@@ -184,6 +189,7 @@ class AppointmentModel {
       cost: cost ?? this.cost,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      cancelledBy: cancelledBy ?? this.cancelledBy,
     );
   }
 

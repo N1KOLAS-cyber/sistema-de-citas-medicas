@@ -1,10 +1,10 @@
-# 📚 Documentación Completa - Sistema NERV
+# 📚 Documentación Completa - Sistema MedCitas
 
-## 🎯 Sistema de Citas Médicas NERV
+## 🎯 Sistema de Citas Médicas MedCitas
 
 > Aplicación móvil multiplataforma para la gestión eficiente de citas médicas entre pacientes y profesionales de la salud.
 
-![NERV Logo](assets/images/logo.jpeg)
+![MedCitas Logo](assets/images/logo.jpeg)
 
 ---
 
@@ -55,7 +55,7 @@ flutter run
 
 ## Descripción General
 
-**NERV** es un sistema integral de gestión de citas médicas desarrollado como proyecto académico del cuarto cuatrimestre. La aplicación permite a pacientes agendar citas con doctores especializados, gestionar su historial médico y facilitar la comunicación entre profesionales de la salud y pacientes.
+**MedCitas** es un sistema integral de gestión de citas médicas desarrollado como proyecto académico del cuarto cuatrimestre. La aplicación permite a pacientes agendar citas con doctores especializados, gestionar su historial médico y facilitar la comunicación entre profesionales de la salud y pacientes.
 
 Desarrollado con Flutter para garantizar compatibilidad multiplataforma (Android, iOS, Web, Desktop) y Firebase como backend para autenticación en tiempo real y almacenamiento de datos en la nube.
 
