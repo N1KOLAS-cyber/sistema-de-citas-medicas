@@ -66,31 +66,57 @@ class _DashboardPageState extends State<DashboardPage> {
           DateTime startMonths(int months) =>
               DateTime(now.year, now.month - months, now.day);
 
-          bool isWithinMonths(DateTime? date, int months) {
-            if (date == null) return false;
-            return date.isAfter(startMonths(months));
+          String extractPatientId(Map<String, dynamic> data, String docId) {
+            return (data['patientId'] ??
+                    data['nombreUsuario'] ??
+                    data['patientEmail'] ??
+                    docId)
+                .toString();
           }
 
-          int countAppointmentsWithin(int months) => citas
-              .where((doc) => isWithinMonths(
-                  _parseDate(
-                      doc.data()['appointmentDate'] ?? doc.data()['fechaHora']),
-                  months))
-              .length;
+          int countAppointmentsWithin(int months, {Set<String>? statuses}) {
+            final cutoff = startMonths(months);
+            return citas.where((doc) {
+              final fecha =
+                  _parseDate(doc.data()['appointmentDate'] ?? doc.data()['fechaHora']);
+              if (fecha == null || fecha.isBefore(cutoff)) return false;
+              if (statuses != null && statuses.isNotEmpty) {
+                final status = (doc.data()['status'] ?? '').toString().toLowerCase();
+                if (!statuses.contains(status)) return false;
+              }
+              return true;
+            }).length;
+          }
 
           int countUniquePatientsWithin(int months) {
             final patients = <String>{};
+            final cutoff = startMonths(months);
             for (final doc in citas) {
-              final fecha = _parseDate(
-                  doc.data()['appointmentDate'] ?? doc.data()['fechaHora']);
-              if (!isWithinMonths(fecha, months)) continue;
-              final id = doc.data()['patientId'] ??
-                  doc.data()['nombreUsuario'] ??
-                  doc.data()['patientEmail'] ??
-                  doc.id;
-              patients.add(id.toString());
+              final fecha =
+                  _parseDate(doc.data()['appointmentDate'] ?? doc.data()['fechaHora']);
+              if (fecha == null || fecha.isBefore(cutoff)) continue;
+              patients.add(extractPatientId(doc.data(), doc.id));
             }
             return patients.length;
+          }
+
+          final Map<String, DateTime> firstAppointmentByPatient = {};
+          for (final doc in citas) {
+            final fecha =
+                _parseDate(doc.data()['appointmentDate'] ?? doc.data()['fechaHora']);
+            if (fecha == null) continue;
+            final id = extractPatientId(doc.data(), doc.id);
+            final current = firstAppointmentByPatient[id];
+            if (current == null || fecha.isBefore(current)) {
+              firstAppointmentByPatient[id] = fecha;
+            }
+          }
+
+          int countByStatus(Set<String> statuses) {
+            return citas.where((doc) {
+              final status = (doc.data()['status'] ?? '').toString().toLowerCase();
+              return statuses.contains(status);
+            }).length;
           }
 
           final citasHoy = citas.where((doc) {
@@ -101,27 +127,25 @@ class _DashboardPageState extends State<DashboardPage> {
             return truncated == today;
           }).length;
 
-          final pendientes = citas.where((doc) {
-            final status = (doc.data()['status'] ?? '').toString().toLowerCase();
-            return status == 'pending' ||
-                status == 'confirmada' ||
-                status == 'confirmed';
-          }).length;
-
-          final activos3m = countAppointmentsWithin(3);
-          final activos6m = countAppointmentsWithin(6);
-          final nuevos3m = countUniquePatientsWithin(3);
-          final nuevos6m = countUniquePatientsWithin(6);
-
           final totalPacientes24m = countUniquePatientsWithin(24);
+          final totalCitas3m = countAppointmentsWithin(3);
+          final totalCitas6m = countAppointmentsWithin(6);
+          final completadas3m =
+              countAppointmentsWithin(3, statuses: {'completed'});
+          final completadas6m =
+              countAppointmentsWithin(6, statuses: {'completed'});
+          final pendientesCount =
+              countByStatus({'pending', 'confirmada', 'confirmed'});
+          final canceladasCount =
+              countByStatus({'cancelled', 'cancelada', 'canceled'});
 
-          double ratioByBase(int value, int base) =>
-              base <= 0 ? 0 : value / base;
+          const int objetivoCitas = 32;
+          const int objetivoPacientes = 32;
 
-          final ratioActividad3 = ratioByBase(activos3m, totalCitas);
-          final ratioActividad6 = ratioByBase(activos6m, totalCitas);
-          final ratioCaptacion3 = ratioByBase(nuevos3m, totalPacientes24m);
-          final ratioCaptacion6 = ratioByBase(nuevos6m, totalPacientes24m);
+          double safeRatio(int value, int base) => base <= 0 ? 0 : value / base;
+
+          final ratioActividad3 = safeRatio(completadas3m, totalCitas3m);
+          final ratioActividad6 = safeRatio(completadas6m, totalCitas6m);
 
           final last90Days = startMonths(3);
           final dailyCounts = <DateTime, int>{};
@@ -142,6 +166,7 @@ class _DashboardPageState extends State<DashboardPage> {
           return LayoutBuilder(
             builder: (context, constraints) {
               final maxWidth = constraints.maxWidth;
+              final isCompact = maxWidth < 640;
               final spacing = 16.0;
               final columns = maxWidth >= 1400
                   ? 4
@@ -159,92 +184,97 @@ class _DashboardPageState extends State<DashboardPage> {
                 return value;
               }
 
-              final metricWidth = columns == 1
-                  ? maxWidth
-                  : clampWidth(cardWidth, 240, 360);
               final donutWidth = columns == 1
-                  ? maxWidth
-                  : clampWidth(cardWidth, 220, 320);
+                  ? clampWidth(maxWidth * 0.6, 160, 200)
+                  : clampWidth(cardWidth, 150, 180);
               final donutConfigs = [
                 _DonutConfig(
                   title: 'Actividad últimos 3 meses',
                   percentage: ratioActividad3 * 100,
-                  value: activos3m,
-                  base: totalCitas,
-                  detail: '$activos3m de $totalCitas citas totales',
+                  value: completadas3m,
+                  base: totalCitas3m,
+                  detail:
+                      '$completadas3m completadas / $totalCitas3m registradas (meta $objetivoCitas)',
                 ),
                 _DonutConfig(
                   title: 'Actividad últimos 6 meses',
                   percentage: ratioActividad6 * 100,
-                  value: activos6m,
+                  value: completadas6m,
+                  base: totalCitas6m,
+                  detail:
+                      '$completadas6m completadas / $totalCitas6m registradas (meta $objetivoCitas)',
+                ),
+                _DonutConfig(
+                  title: 'Citas pendientes',
+                  percentage: safeRatio(pendientesCount, totalCitas) * 100,
+                  value: pendientesCount,
                   base: totalCitas,
-                  detail: '$activos6m de $totalCitas citas totales',
+                  detail: '$pendientesCount pendientes / $totalCitas totales',
                 ),
                 _DonutConfig(
-                  title: 'Captación últimos 3 meses',
-                  percentage: ratioCaptacion3 * 100,
-                  value: nuevos3m,
-                  base: totalPacientes24m,
-                  detail: '$nuevos3m pacientes nuevos / $totalPacientes24m totales',
-                ),
-                _DonutConfig(
-                  title: 'Captación últimos 6 meses',
-                  percentage: ratioCaptacion6 * 100,
-                  value: nuevos6m,
-                  base: totalPacientes24m,
-                  detail: '$nuevos6m pacientes nuevos / $totalPacientes24m totales',
+                  title: 'Citas canceladas',
+                  percentage: safeRatio(canceladasCount, totalCitas) * 100,
+                  value: canceladasCount,
+                  base: totalCitas,
+                  detail: '$canceladasCount canceladas / $totalCitas totales',
                 ),
               ];
 
+              final horizontalPadding = isCompact ? 12.0 : 24.0;
+
               return SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
+                padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 24),
                 child: Center(
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 1400),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Wrap(
-                          spacing: spacing,
-                          runSpacing: spacing,
-                          children: [
-                            SizedBox(
-                              width: metricWidth,
-                              child: _buildMetricColumn(
-                                title: 'Citas totales',
-                                value: totalCitas,
-                                comparison: 'Hoy: $citasHoy',
-                                percentage: ratioByBase(totalCitas, totalCitas) * 100,
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              SizedBox(
+                                width: isCompact ? 220 : 260,
+                                child: _buildMetricColumn(
+                                  title: 'Citas totales',
+                                  value: totalCitas,
+                                  comparison: 'Hoy: $citasHoy',
+                                  percentage: 100,
+                                ),
                               ),
-                            ),
-                            SizedBox(
-                              width: metricWidth,
-                              child: _buildMetricColumn(
-                                title: 'Pacientes únicos',
-                                value: totalPacientes24m,
-                                comparison: 'Pendientes: $pendientes',
-                                percentage: ratioByBase(totalPacientes24m, totalCitas) * 100,
+                              const SizedBox(width: 16),
+                              SizedBox(
+                                width: isCompact ? 220 : 260,
+                                child: _buildMetricColumn(
+                                  title: 'Pacientes únicos',
+                                  value: totalPacientes24m,
+                                  comparison: 'Pendientes: $pendientesCount',
+                                  percentage: safeRatio(totalPacientes24m, objetivoPacientes) * 100,
+                                ),
                               ),
-                            ),
-                            SizedBox(
-                              width: metricWidth,
-                              child: _buildMetricColumn(
-                                title: 'Citas últimos 3 meses',
-                                value: activos3m,
-                                comparison: 'Pacientes nuevos: $nuevos3m',
-                                percentage: ratioActividad3 * 100,
+                              const SizedBox(width: 16),
+                              SizedBox(
+                                width: isCompact ? 220 : 260,
+                                child: _buildMetricColumn(
+                                  title: 'Citas últimos 3 meses',
+                                  value: totalCitas3m,
+                                  comparison: 'Completadas: $completadas3m',
+                                  percentage: ratioActividad3 * 100,
+                                ),
                               ),
-                            ),
-                            SizedBox(
-                              width: metricWidth,
-                              child: _buildMetricColumn(
-                                title: 'Citas últimos 6 meses',
-                                value: activos6m,
-                                comparison: 'Pacientes nuevos: $nuevos6m',
-                                percentage: ratioActividad6 * 100,
+                              const SizedBox(width: 16),
+                              SizedBox(
+                                width: isCompact ? 220 : 260,
+                                child: _buildMetricColumn(
+                                  title: 'Citas últimos 6 meses',
+                                  value: totalCitas6m,
+                                  comparison: 'Completadas: $completadas6m',
+                                  percentage: ratioActividad6 * 100,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                         const SizedBox(height: 32),
                         Wrap(
@@ -393,10 +423,10 @@ class _DashboardPageState extends State<DashboardPage> {
         baseValue <= 0 ? 0.0 : (percentage.isNaN ? 0.0 : percentage.clamp(0, 100));
     final ratio = normalized / 100;
 
-    final availableWidth = width - 32; // padding horizontal aprox.
-    final chartSize = clampDouble(availableWidth, 140, 220);
-    final ringRadius = clampDouble(chartSize / 2 - 6, 36, chartSize / 2);
-    final centerRadius = clampDouble(ringRadius - 18, 24, ringRadius - 6);
+    final availableWidth = width - 36; // padding horizontal aprox.
+    final chartSize = clampDouble(availableWidth * 0.55, 80, 120);
+    final ringRadius = clampDouble(chartSize / 2 - 4, 24, chartSize / 2);
+    final centerRadius = clampDouble(ringRadius - 14, 14, ringRadius - 4);
 
     return SizedBox(
       width: width,
@@ -408,70 +438,68 @@ class _DashboardPageState extends State<DashboardPage> {
           final displayPercent = (animatedRatio * 100).clamp(0, 100);
           final remaining = (1 - animatedRatio).clamp(0.001, 1.0);
 
-          return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          return Tooltip(
+            message: detailText,
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE0E4EC)),
+              color: Colors.black.withAlpha(220),
+              borderRadius: BorderRadius.circular(8),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF0C0F1A),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  height: chartSize,
-                  child: PieChart(
-                    PieChartData(
-                      sectionsSpace: 3,
-                      centerSpaceRadius: centerRadius,
-                      startDegreeOffset: -90,
-                      sections: [
-                        PieChartSectionData(
-                          value: animatedRatio <= 0 ? 0.001 : animatedRatio,
-                          color: const Color(0xFF6AC3FF),
-                          showTitle: false,
-                          radius: ringRadius,
-                        ),
-                        PieChartSectionData(
-                          value: remaining,
-                          color: const Color(0xFFE6E8EC),
-                          showTitle: false,
-                          radius: ringRadius,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                Center(
-                  child: Text(
-                    '${displayPercent.toStringAsFixed(2)}%',
+            textStyle: const TextStyle(color: Colors.white, fontSize: 13),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE0E4EC)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
                     style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF0C0F1A),
                     ),
                   ),
-                ),
-                const SizedBox(height: 2),
-                Center(
-                  child: Text(
-                    detailText,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    height: chartSize,
+                    child: PieChart(
+                      PieChartData(
+                        sectionsSpace: 3,
+                        centerSpaceRadius: centerRadius,
+                        startDegreeOffset: -90,
+                        sections: [
+                          PieChartSectionData(
+                            value: animatedRatio <= 0 ? 0.001 : animatedRatio,
+                            color: const Color(0xFF6AC3FF),
+                            showTitle: false,
+                            radius: ringRadius,
+                          ),
+                          PieChartSectionData(
+                            value: remaining,
+                            color: const Color(0xFFE6E8EC),
+                            showTitle: false,
+                            radius: ringRadius,
+                          ),
+                        ],
+                      ),
                     ),
-                    textAlign: TextAlign.center,
                   ),
-                ),
-              ],
+                  Center(
+                    child: Text(
+                      '${displayPercent.toStringAsFixed(2)}%',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           );
         },
