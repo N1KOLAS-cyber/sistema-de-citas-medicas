@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
 import '../constants/app_constants.dart';
+import '../utils/logger.dart';
 
 class AdminService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -39,21 +40,21 @@ class AdminService {
               .collection('users')
               .doc(userCredential.user!.uid)
               .set(userModel.toMap());
-          print('✅ Usuario $name creado exitosamente');
+          logInfo('✅ Usuario $name creado exitosamente');
         } catch (firestoreError) {
-          print('⚠️ Usuario $name creado en Auth pero error en Firestore: $firestoreError');
+          logInfo('⚠️ Usuario $name creado en Auth pero error en Firestore: $firestoreError');
           // El usuario se creó en Auth, pero no en Firestore
           // Esto es aceptable para el funcionamiento básico
         }
       }
     } on FirebaseAuthException catch (e) {
       if (e.code == 'email-already-in-use') {
-        print('ℹ️ El usuario $name ya existe');
+        logInfo('ℹ️ El usuario $name ya existe');
       } else {
-        print('❌ Error de autenticación para $name: ${e.message}');
+        logInfo('❌ Error de autenticación para $name: ${e.message}');
       }
     } catch (e) {
-      print('❌ Error al crear usuario $name: $e');
+      logInfo('❌ Error al crear usuario $name: $e');
     }
   }
 
@@ -82,7 +83,7 @@ class AdminService {
       );
       return userCredential;
     } catch (e) {
-      print('❌ Error al iniciar sesión como admin: $e');
+      logInfo('❌ Error al iniciar sesión como admin: $e');
       return null;
     }
   }

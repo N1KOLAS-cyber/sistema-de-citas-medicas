@@ -1,16 +1,15 @@
-/**
- * APP DRAWER - SIDEBAR GLOBAL DE LA APLICACIÓN
- * 
- * Drawer reutilizable que se muestra en todas las páginas principales de la app.
- * Incluye navegación según el rol del usuario (Paciente/Médico).
- * 
- * FUNCIONALIDADES:
- * - Navegación principal según rol
- * - Acceso al Dashboard (solo para médicos)
- * - Acceso a perfil, citas, doctores
- * - Cerrar sesión
- * - Información del usuario actual
- */
+//
+// APP DRAWER - SIDEBAR GLOBAL DE LA APLICACIÓN
+//
+// Drawer reutilizable que se muestra en todas las páginas principales de la app.
+// Incluye navegación según el rol del usuario (Paciente/Médico).
+//
+// FUNCIONALIDADES:
+// - Navegación principal según rol
+// - Acceso al Dashboard (solo para médicos)
+// - Acceso a perfil, citas, doctores
+// - Cerrar sesión
+// - Información del usuario actual
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -26,6 +25,7 @@ import '../tabs/create_appointment_page.dart';
 import '../tabs/admin_tools_page.dart';
 import '../tabs/simple_login_page.dart';
 import '../tabs/home_page.dart';
+import '../utils/logger.dart';
 
 class AppDrawer extends StatelessWidget {
   final UserModel? user; // Opcional, si no se proporciona se obtiene de Firestore
@@ -76,15 +76,15 @@ class AppDrawer extends StatelessWidget {
         final bool isAdmin = currentUser.email.contains('admin');
         
         // Debug: imprimir información del usuario
-        print('═══════════════════════════════════════');
-        print('🔍 DEBUG AppDrawer - INFORMACIÓN DEL USUARIO');
-        print('═══════════════════════════════════════');
-        print('👤 Usuario: ${currentUser.name}');
-        print('📧 Email: ${currentUser.email}');
-        print('🏷️  Role: "${currentUser.role}" (tipo: ${currentUser.role.runtimeType})');
-        print('👨‍⚕️ isDoctor: ${currentUser.isDoctor} (tipo: ${currentUser.isDoctor.runtimeType})');
-        print('✅ isMedico (resultado): $isMedico');
-        print('═══════════════════════════════════════');
+        logInfo('═══════════════════════════════════════');
+        logInfo('🔍 DEBUG AppDrawer - INFORMACIÓN DEL USUARIO');
+        logInfo('═══════════════════════════════════════');
+        logInfo('👤 Usuario: ${currentUser.name}');
+        logInfo('📧 Email: ${currentUser.email}');
+        logInfo('🏷️  Role: "${currentUser.role}" (tipo: ${currentUser.role.runtimeType})');
+        logInfo('👨‍⚕️ isDoctor: ${currentUser.isDoctor} (tipo: ${currentUser.isDoctor.runtimeType})');
+        logInfo('✅ isMedico (resultado): $isMedico');
+        logInfo('═══════════════════════════════════════');
 
     return Drawer(
       child: ListView(
@@ -152,7 +152,7 @@ class AppDrawer extends StatelessWidget {
             const Divider(),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-              color: Colors.blue.withOpacity(0.1),
+              color: Colors.blue.withValues(alpha: 0.1),
               child: Row(
                 children: [
                   const Icon(Icons.medical_services, color: Colors.blue, size: 20),
@@ -170,7 +170,7 @@ class AppDrawer extends StatelessWidget {
             ),
             // Dashboard - Solo para médicos
             Container(
-              color: Colors.blue.withOpacity(0.05),
+              color: Colors.blue.withValues(alpha: 0.05),
               child: ListTile(
                 leading: const Icon(Icons.dashboard, color: Colors.blue, size: 32),
                 title: const Text(
@@ -187,7 +187,7 @@ class AppDrawer extends StatelessWidget {
                 ),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.blue),
                 onTap: () {
-                  print('🔍 DEBUG - Navegando al Dashboard para: ${currentUser.name}');
+                  logInfo('🔍 DEBUG - Navegando al Dashboard para: ${currentUser.name}');
                   Navigator.pop(context);
                   Navigator.push(
                     context,
@@ -398,26 +398,26 @@ class AppDrawer extends StatelessWidget {
   /// Obtiene el usuario actual desde Firestore si no se proporciona
   Future<UserModel?> _getUser() async {
     if (user != null) {
-      print('🔍 DEBUG AppDrawer - Usando usuario proporcionado: ${user!.name}, role: ${user!.role}, isDoctor: ${user!.isDoctor}');
+      logInfo('🔍 DEBUG AppDrawer - Usando usuario proporcionado: ${user!.name}, role: ${user!.role}, isDoctor: ${user!.isDoctor}');
       return user;
     }
     
     final currentAuthUser = FirebaseAuth.instance.currentUser;
     if (currentAuthUser == null) {
-      print('🔍 DEBUG AppDrawer - No hay usuario autenticado');
+      logInfo('🔍 DEBUG AppDrawer - No hay usuario autenticado');
       return null;
     }
     
     try {
       final userFromFirestore = await FirestoreService.getUser(currentAuthUser.uid);
       if (userFromFirestore != null) {
-        print('🔍 DEBUG AppDrawer - Usuario cargado de Firestore: ${userFromFirestore.name}, role: ${userFromFirestore.role}, isDoctor: ${userFromFirestore.isDoctor}');
+        logInfo('🔍 DEBUG AppDrawer - Usuario cargado de Firestore: ${userFromFirestore.name}, role: ${userFromFirestore.role}, isDoctor: ${userFromFirestore.isDoctor}');
       } else {
-        print('🔍 DEBUG AppDrawer - Usuario no encontrado en Firestore');
+        logInfo('🔍 DEBUG AppDrawer - Usuario no encontrado en Firestore');
       }
       return userFromFirestore;
     } catch (e) {
-      print('🔍 DEBUG AppDrawer - Error al obtener usuario: $e');
+      logInfo('🔍 DEBUG AppDrawer - Error al obtener usuario: $e');
       return null;
     }
   }

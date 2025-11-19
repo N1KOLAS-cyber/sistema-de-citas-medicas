@@ -1,21 +1,21 @@
-/// MAIN.DART - PUNTO DE ENTRADA PRINCIPAL DE LA APLICACIÓN
-///
-/// Este archivo es el punto de entrada principal de la aplicación Flutter.
-/// Configura Firebase, inicializa la aplicación y define el tema global.
-///
-/// FUNCIONALIDADES:
-/// - Inicialización de Firebase
-/// - Creación automática del usuario administrador
-/// - Configuración del tema de la aplicación
-/// - Definición de la página de inicio (SimpleLoginPage)
-///
-/// ESTRUCTURA:
-/// - main(): Función principal que inicializa la app
-/// - MyApp: Widget raíz con configuración de tema
-/// - Configuración de colores y estilos globales
-///
-/// VISUALIZACIÓN: Aplicación con tema médico azul, navegación
-/// intuitiva y diseño moderno.
+// MAIN.DART - PUNTO DE ENTRADA PRINCIPAL DE LA APLICACIÓN
+//
+// Este archivo es el punto de entrada principal de la aplicación Flutter.
+// Configura Firebase, inicializa la aplicación y define el tema global.
+//
+// FUNCIONALIDADES:
+// - Inicialización de Firebase
+// - Creación automática del usuario administrador
+// - Configuración del tema de la aplicación
+// - Definición de la página de inicio (SimpleLoginPage)
+//
+// ESTRUCTURA:
+// - main(): Función principal que inicializa la app
+// - MyApp: Widget raíz con configuración de tema
+// - Configuración de colores y estilos globales
+//
+// VISUALIZACIÓN: Aplicación con tema médico azul, navegación
+// intuitiva y diseño moderno.
 
 import 'package:flutter/material.dart';
 import 'tabs/simple_login_page.dart';

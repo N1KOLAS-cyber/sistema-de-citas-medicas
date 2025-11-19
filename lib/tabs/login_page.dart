@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
 import '../services/firestore_service.dart';
 import '../constants/app_constants.dart';
+import '../utils/logger.dart';
 import 'home_page.dart';
 import 'register_page.dart';
 
@@ -36,6 +37,7 @@ final FirebaseAuth _auth = FirebaseAuth.instance;
         email: emailController.text.trim(),
         password: passwordController.text,
       );
+      if (!mounted) return;
 
       if (userCredential.user != null) {
         Navigator.of(context).pop(); // Cerrar loading
@@ -46,11 +48,13 @@ final FirebaseAuth _auth = FirebaseAuth.instance;
               .collection('users')
               .doc(userCredential.user!.uid)
               .get();
+          if (!mounted) return;
 
           if (userDoc.exists) {
             UserModel user = UserModel.fromMap(userDoc.data() as Map<String, dynamic>);
             
             // Navegar al dashboard
+            if (!mounted) return;
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
                 builder: (context) => HomePage(user: user),
@@ -71,9 +75,10 @@ final FirebaseAuth _auth = FirebaseAuth.instance;
             
             // Guardar en Firestore
             FirestoreService.createUser(basicUser).catchError((error) {
-              print('⚠️ Error al crear usuario en Firestore: $error');
+              logInfo('⚠️ Error al crear usuario en Firestore: $error');
             });
             
+            if (!mounted) return;
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
                 builder: (context) => HomePage(user: basicUser),
@@ -93,6 +98,7 @@ final FirebaseAuth _auth = FirebaseAuth.instance;
             role: 'Paciente',
           );
           
+          if (!mounted) return;
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
               builder: (context) => HomePage(user: basicUser),
@@ -101,6 +107,7 @@ final FirebaseAuth _auth = FirebaseAuth.instance;
         }
       }
     } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
       Navigator.of(context).pop(); // Cerrar loading
       String message = "";
       if (e.code == 'user-not-found') {
@@ -116,6 +123,7 @@ final FirebaseAuth _auth = FirebaseAuth.instance;
       }
       _showErrorDialog(message);
     } catch (e) {
+      if (!mounted) return;
       Navigator.of(context).pop(); // Cerrar loading
       _showErrorDialog('Error inesperado: $e');
     }
@@ -146,6 +154,7 @@ final FirebaseAuth _auth = FirebaseAuth.instance;
 
     try {
       await _auth.sendPasswordResetEmail(email: emailController.text.trim());
+      if (!mounted) return;
       showDialog(
         context: context,
         builder: (context) => AlertDialog(

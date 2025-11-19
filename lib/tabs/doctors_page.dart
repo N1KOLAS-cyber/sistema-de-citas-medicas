@@ -1,32 +1,32 @@
-/**
- * DOCTORS PAGE - PÁGINA DE LISTADO DE DOCTORES
- * 
- * Este archivo contiene la página que muestra la lista de doctores disponibles.
- * Permite buscar, filtrar por especialidad y agendar citas.
- * 
- * FUNCIONALIDADES:
- * - Lista de doctores con información detallada
- * - Búsqueda por nombre y especialidad
- * - Filtros por especialidad médica
- * - Visualización de perfil del doctor
- * - Agendamiento directo de citas
- * - Calificaciones y estadísticas
- * 
- * ESTRUCTURA:
- * - Barra de búsqueda
- * - Filtros de especialidad
- * - Lista de doctores con tarjetas
- * - Diálogos de perfil y agendamiento
- * 
- * VISUALIZACIÓN: Página con diseño de tarjetas, filtros horizontales,
- * búsqueda en tiempo real y información detallada de cada doctor.
- */
+//
+// DOCTORS PAGE - PÁGINA DE LISTADO DE DOCTORES
+//
+// Este archivo contiene la página que muestra la lista de doctores disponibles.
+// Permite buscar, filtrar por especialidad y agendar citas.
+//
+// FUNCIONALIDADES:
+// - Lista de doctores con información detallada
+// - Búsqueda por nombre y especialidad
+// - Filtros por especialidad médica
+// - Visualización de perfil del doctor
+// - Agendamiento directo de citas
+// - Calificaciones y estadísticas
+//
+// ESTRUCTURA:
+// - Barra de búsqueda
+// - Filtros de especialidad
+// - Lista de doctores con tarjetas
+// - Diálogos de perfil y agendamiento
+//
+// VISUALIZACIÓN: Página con diseño de tarjetas, filtros horizontales,
+// búsqueda en tiempo real y información detallada de cada doctor.
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_model.dart';
 import '../models/specialty_model.dart';
+import '../utils/logger.dart';
 import '../widgets/app_drawer.dart';
 
 class DoctorsPage extends StatefulWidget {
@@ -99,7 +99,7 @@ class _DoctorsPageState extends State<DoctorsPage> {
                           _selectedSpecialty = 'Todas';
                         });
                       },
-                      selectedColor: Colors.indigo.withOpacity(0.2),
+                      selectedColor: Colors.indigo.withValues(alpha: 0.2),
                       checkmarkColor: Colors.indigo,
                     ),
                   );
@@ -116,7 +116,7 @@ class _DoctorsPageState extends State<DoctorsPage> {
                         _selectedSpecialty = specialty.name;
                       });
                     },
-                    selectedColor: Colors.indigo.withOpacity(0.2),
+                    selectedColor: Colors.indigo.withValues(alpha: 0.2),
                     checkmarkColor: Colors.indigo,
                   ),
                 );
@@ -191,10 +191,8 @@ class _DoctorsPageState extends State<DoctorsPage> {
     );
   }
 
-  /**
-   * Obtiene el stream de doctores desde Firestore
-   * @return Stream<QuerySnapshot> - Stream de doctores
-   */
+  ///
+  /// Obtiene el stream de doctores desde Firestore.
   Stream<QuerySnapshot> _getDoctorsStream() {
     return _firestore
         .collection('usuarios')
@@ -202,11 +200,8 @@ class _DoctorsPageState extends State<DoctorsPage> {
         .snapshots();
   }
 
-  /**
-   * Filtra la lista de doctores según especialidad y búsqueda
-   * @param doctors - Lista de doctores a filtrar
-   * @return List<UserModel> - Lista filtrada de doctores
-   */
+  ///
+  /// Filtra la lista de doctores según especialidad y término de búsqueda y devuelve el resultado.
   List<UserModel> _filterDoctors(List<UserModel> doctors) {
     // Filtrar por especialidad
     if (_selectedSpecialty != 'Todas') {
@@ -225,11 +220,10 @@ class _DoctorsPageState extends State<DoctorsPage> {
     return doctors;
   }
 
-  /**
-   * Construye la tarjeta de información de un doctor
-   * @param doctor - Modelo del doctor a mostrar
-   * @return Widget - Tarjeta con información del doctor
-   */
+  ///
+  /// Construye la tarjeta de información de un doctor
+  /// @param doctor - Modelo del doctor a mostrar
+  /// @return Widget - Tarjeta con información del doctor
   Widget _buildDoctorCard(UserModel doctor) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -245,7 +239,7 @@ class _DoctorsPageState extends State<DoctorsPage> {
                 // Avatar del doctor
                 CircleAvatar(
                   radius: 30,
-                  backgroundColor: Colors.indigo.withOpacity(0.1),
+                  backgroundColor: Colors.indigo.withValues(alpha: 0.1),
                   child: doctor.profileImage != null
                       ? ClipOval(
                           child: Image.network(
@@ -373,10 +367,9 @@ class _DoctorsPageState extends State<DoctorsPage> {
     );
   }
 
-  /**
-   * Muestra el perfil detallado de un doctor en un diálogo
-   * @param doctor - Doctor del cual mostrar el perfil
-   */
+  ///
+  /// Muestra el perfil detallado de un doctor en un diálogo
+  /// @param doctor - Doctor del cual mostrar el perfil
   void _viewDoctorProfile(UserModel doctor) {
     showDialog(
       context: context,
@@ -390,7 +383,7 @@ class _DoctorsPageState extends State<DoctorsPage> {
               _buildProfileDetail("Especialidad:", doctor.specialty ?? 'No especificada'),
               _buildProfileDetail("Licencia:", doctor.licenseNumber ?? 'No disponible'),
               _buildProfileDetail("Calificación:", "${doctor.rating?.toStringAsFixed(1) ?? '0.0'} ⭐"),
-              _buildProfileDetail("Citas Atendidas:", "${doctor.totalAppointments ?? 0}"),
+              _buildProfileDetail("Citas Atendidas:", (doctor.totalAppointments ?? 0).toString()),
               _buildProfileDetail("Teléfono:", doctor.phone),
               _buildProfileDetail("Email:", doctor.email),
             ],
@@ -417,12 +410,11 @@ class _DoctorsPageState extends State<DoctorsPage> {
     );
   }
 
-  /**
-   * Construye una fila de detalle del perfil
-   * @param label - Etiqueta del campo
-   * @param value - Valor del campo
-   * @return Widget - Fila de detalle
-   */
+  ///
+  /// Construye una fila de detalle del perfil
+  /// @param label - Etiqueta del campo
+  /// @param value - Valor del campo
+  /// @return Widget - Fila de detalle
   Widget _buildProfileDetail(String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -444,10 +436,9 @@ class _DoctorsPageState extends State<DoctorsPage> {
     );
   }
 
-  /**
-   * Decide si mostrar el botón de puntuar o solo ver calificaciones
-   * @param doctor - Doctor a evaluar
-   */
+  ///
+  /// Decide si mostrar el botón de puntuar o solo ver calificaciones
+  /// @param doctor - Doctor a evaluar
   void _showRatingButton(UserModel doctor) async {
     // Verificar si el usuario actual es doctor
     User? currentUser = _auth.currentUser;
@@ -457,6 +448,7 @@ class _DoctorsPageState extends State<DoctorsPage> {
             .collection('usuarios')
             .doc(currentUser.uid)
             .get();
+        if (!mounted) return;
         
         if (userDoc.exists) {
           final userData = userDoc.data()!;
@@ -470,7 +462,7 @@ class _DoctorsPageState extends State<DoctorsPage> {
         }
       } catch (e) {
         // Si hay error al verificar, permitir la puntuación
-        print('Error verificando usuario: $e');
+        logInfo('Error verificando usuario: $e');
       }
     }
 
@@ -478,10 +470,9 @@ class _DoctorsPageState extends State<DoctorsPage> {
     _rateDoctor(doctor);
   }
 
-  /**
-   * Muestra las calificaciones del doctor sin permitir puntuar
-   * @param doctor - Doctor del cual mostrar calificaciones
-   */
+  ///
+  /// Muestra las calificaciones del doctor sin permitir puntuar
+  /// @param doctor - Doctor del cual mostrar calificaciones
   void _viewDoctorRating(UserModel doctor) {
     showDialog(
       context: context,
@@ -497,7 +488,7 @@ class _DoctorsPageState extends State<DoctorsPage> {
                 Icon(Icons.star, color: Colors.orange, size: 30),
                 const SizedBox(width: 8),
                 Text(
-                  "${doctor.rating?.toStringAsFixed(1) ?? '0.0'}",
+                  doctor.rating?.toStringAsFixed(1) ?? '0.0',
                   style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -562,11 +553,10 @@ class _DoctorsPageState extends State<DoctorsPage> {
     );
   }
 
-  /**
-   * Muestra el diálogo para puntuar a un doctor
-   * Permite al usuario calificar al doctor y actualizar su puntuación
-   * @param doctor - Doctor a puntuar
-   */
+  ///
+  /// Muestra el diálogo para puntuar a un doctor
+  /// Permite al usuario calificar al doctor y actualizar su puntuación
+  /// @param doctor - Doctor a puntuar
   void _rateDoctor(UserModel doctor) async {
     // Verificar si el usuario actual es doctor
     User? currentUser = _auth.currentUser;
@@ -576,12 +566,14 @@ class _DoctorsPageState extends State<DoctorsPage> {
             .collection('usuarios')
             .doc(currentUser.uid)
             .get();
+        if (!mounted) return;
         
         if (userDoc.exists) {
           final userData = userDoc.data()!;
           final isCurrentUserDoctor = userData['isDoctor'] ?? false;
           
           if (isCurrentUserDoctor) {
+            if (!mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text("Los doctores no pueden puntuar a otros doctores"),
@@ -593,7 +585,7 @@ class _DoctorsPageState extends State<DoctorsPage> {
         }
       } catch (e) {
         // Si hay error al verificar, permitir la puntuación
-        print('Error verificando usuario: $e');
+        logInfo('Error verificando usuario: $e');
       }
     }
 
@@ -603,11 +595,10 @@ class _DoctorsPageState extends State<DoctorsPage> {
     );
   }
 
-  /**
-   * Envía la puntuación del doctor y actualiza su calificación promedio
-   * @param doctor - Doctor a calificar
-   * @param rating - Puntuación dada (1-5)
-   */
+  ///
+  /// Envía la puntuación del doctor y actualiza su calificación promedio
+  /// @param doctor - Doctor a calificar
+  /// @param rating - Puntuación dada (1-5)
   void _submitRating(UserModel doctor, double rating) async {
     if (!mounted) return;
     
@@ -665,11 +656,10 @@ class _DoctorsPageState extends State<DoctorsPage> {
     }
   }
 
-  /**
-   * Actualiza la calificación promedio del doctor en Firestore
-   * @param doctorId - ID del doctor
-   * @param newRating - Nueva puntuación
-   */
+  ///
+  /// Actualiza la calificación promedio del doctor en Firestore
+  /// @param doctorId - ID del doctor
+  /// @param newRating - Nueva puntuación
   Future<void> _updateDoctorRating(String doctorId, double newRating) async {
     try {
       User? currentUser = _auth.currentUser;
@@ -728,7 +718,7 @@ class _DoctorsPageState extends State<DoctorsPage> {
       } catch (updateError) {
         // Si falla la actualización del promedio, al menos guardamos la calificación
         // El promedio se puede recalcular cuando se lea
-        print('Error al actualizar promedio, pero la calificación se guardó: $updateError');
+        logInfo('Error al actualizar promedio, pero la calificación se guardó: $updateError');
       }
     } catch (e) {
       throw Exception('Error al actualizar calificación: $e');
@@ -736,10 +726,9 @@ class _DoctorsPageState extends State<DoctorsPage> {
   }
 }
 
-/**
- * Widget de diálogo para puntuar doctores
- * Maneja el estado de las estrellas de forma independiente
- */
+///
+/// Widget de diálogo para puntuar doctores
+/// Maneja el estado de las estrellas de forma independiente
 class _RatingDialog extends StatefulWidget {
   final UserModel doctor;
   final Function(UserModel doctor, double rating) onSubmit;

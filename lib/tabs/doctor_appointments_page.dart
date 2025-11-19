@@ -1,25 +1,24 @@
-/**
- * DOCTOR APPOINTMENTS PAGE - PÁGINA DE CITAS PARA DOCTORES
- * 
- * Este archivo contiene la página que permite a los doctores ver y gestionar
- * las citas que han solicitado los pacientes.
- * 
- * FUNCIONALIDADES:
- * - Lista de citas pendientes de aprobación
- * - Aprobación o rechazo de citas
- * - Visualización de detalles del paciente
- * - Filtros por estado de cita
- * - Notificaciones de nuevas solicitudes
- * 
- * ESTRUCTURA:
- * - AppBar con filtros y acciones
- * - Lista de citas con información detallada
- * - Botones de aprobación/rechazo
- * - Diálogos de confirmación
- * 
- * VISUALIZACIÓN: Página con diseño de tarjetas, filtros intuitivos,
- * información clara de cada cita y botones de acción contextuales.
- */
+//
+// DOCTOR APPOINTMENTS PAGE - PÁGINA DE CITAS PARA DOCTORES
+//
+// Este archivo contiene la página que permite a los doctores ver y gestionar
+// las citas que han solicitado los pacientes.
+//
+// FUNCIONALIDADES:
+// - Lista de citas pendientes de aprobación
+// - Aprobación o rechazo de citas
+// - Visualización de detalles del paciente
+// - Filtros por estado de cita
+// - Notificaciones de nuevas solicitudes
+//
+// ESTRUCTURA:
+// - AppBar con filtros y acciones
+// - Lista de citas con información detallada
+// - Botones de aprobación/rechazo
+// - Diálogos de confirmación
+//
+// VISUALIZACIÓN: Página con diseño de tarjetas, filtros intuitivos,
+// información clara de cada cita y botones de acción contextuales.
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -135,10 +134,8 @@ class _DoctorAppointmentsPageState extends State<DoctorAppointmentsPage> {
     );
   }
 
-  /**
-   * Obtiene el stream de citas del doctor actual desde Firestore
-   * @return Stream<QuerySnapshot> - Stream de citas del doctor
-   */
+  ///
+  /// Obtiene el stream de citas del doctor actual desde Firestore.
   Stream<QuerySnapshot> _getAppointmentsStream() {
     User? currentUser = _auth.currentUser;
     
@@ -157,11 +154,8 @@ class _DoctorAppointmentsPageState extends State<DoctorAppointmentsPage> {
         .snapshots();
   }
 
-  /**
-   * Filtra las citas según el filtro seleccionado
-   * @param appointments - Lista de citas a filtrar
-   * @return List<AppointmentModel> - Lista filtrada de citas
-   */
+  ///
+  /// Filtra las citas según el filtro seleccionado y devuelve la lista resultante.
   List<AppointmentModel> _filterAppointments(List<AppointmentModel> appointments) {
     if (_selectedFilter == 'Pendientes') {
       return appointments.where((appointment) {
@@ -176,11 +170,10 @@ class _DoctorAppointmentsPageState extends State<DoctorAppointmentsPage> {
     return appointments;
   }
 
-  /**
-   * Construye la tarjeta de información de una cita
-   * @param appointment - Modelo de la cita a mostrar
-   * @return Widget - Tarjeta con información de la cita
-   */
+  ///
+  /// Construye la tarjeta de información de una cita
+  /// @param appointment - Modelo de la cita a mostrar
+  /// @return Widget - Tarjeta con información de la cita
   Widget _buildAppointmentCard(AppointmentModel appointment) {
     Color statusColor = _getStatusColor(appointment.status);
     
@@ -203,9 +196,9 @@ class _DoctorAppointmentsPageState extends State<DoctorAppointmentsPage> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.1),
+                        color: statusColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: statusColor.withOpacity(0.3)),
+                        border: Border.all(color: statusColor.withValues(alpha: 0.3)),
                       ),
                       child: Text(
                         appointment.statusText,
@@ -223,9 +216,9 @@ class _DoctorAppointmentsPageState extends State<DoctorAppointmentsPage> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.orange.withOpacity(0.1),
+                          color: Colors.orange.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                          border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -466,11 +459,10 @@ class _DoctorAppointmentsPageState extends State<DoctorAppointmentsPage> {
     );
   }
 
-  /**
-   * Obtiene el color correspondiente al estado de una cita
-   * @param status - Estado de la cita
-   * @return Color - Color representativo del estado
-   */
+  ///
+  /// Obtiene el color correspondiente al estado de una cita
+  /// @param status - Estado de la cita
+  /// @return Color - Color representativo del estado
   Color _getStatusColor(AppointmentStatus status) {
     switch (status) {
       case AppointmentStatus.pending:
@@ -484,52 +476,49 @@ class _DoctorAppointmentsPageState extends State<DoctorAppointmentsPage> {
     }
   }
 
-  /**
-   * Formatea una fecha para mostrar en la interfaz
-   * @param date - Fecha a formatear
-   * @return String - Fecha formateada
-   */
+  ///
+  /// Formatea una fecha para mostrar en la interfaz
+  /// @param date - Fecha a formatear
+  /// @return String - Fecha formateada
   String _formatDate(DateTime date) {
     return "${date.day}/${date.month}/${date.year}";
   }
 
-  /**
-   * Aprueba una cita pendiente
-   * @param appointment - Cita a aprobar
-   */
+  ///
+  /// Aprueba una cita pendiente
+  /// @param appointment - Cita a aprobar
   void _approveAppointment(AppointmentModel appointment) {
+    final parentContext = context;
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text("Aprobar Cita"),
         content: const Text("¿Estás seguro de que quieres aprobar esta cita?"),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text("Cancelar"),
           ),
           ElevatedButton(
             onPressed: () async {
-              Navigator.of(context).pop();
+              Navigator.of(dialogContext).pop();
               try {
                 await _updateAppointmentStatus(appointment.id, AppointmentStatus.confirmed);
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("Cita aprobada exitosamente"),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                }
+                if (!parentContext.mounted) return;
+                ScaffoldMessenger.of(parentContext).showSnackBar(
+                  const SnackBar(
+                    content: Text("Cita aprobada exitosamente"),
+                    backgroundColor: Colors.green,
+                  ),
+                );
               } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text("Error al aprobar cita: $e"),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
+                if (!parentContext.mounted) return;
+                ScaffoldMessenger.of(parentContext).showSnackBar(
+                  SnackBar(
+                    content: Text("Error al aprobar cita: $e"),
+                    backgroundColor: Colors.red,
+                  ),
+                );
               }
             },
             style: ElevatedButton.styleFrom(
@@ -543,47 +532,45 @@ class _DoctorAppointmentsPageState extends State<DoctorAppointmentsPage> {
     );
   }
 
-  /**
-   * Rechaza una cita pendiente
-   * @param appointment - Cita a rechazar
-   */
+  ///
+  /// Rechaza una cita pendiente
+  /// @param appointment - Cita a rechazar
   void _rejectAppointment(AppointmentModel appointment) {
+    final parentContext = context;
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text("Rechazar Cita"),
         content: const Text("¿Estás seguro de que quieres rechazar esta cita?"),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text("Cancelar"),
           ),
           ElevatedButton(
             onPressed: () async {
-              Navigator.of(context).pop();
+              Navigator.of(dialogContext).pop();
               try {
                 await _updateAppointmentStatus(
                   appointment.id, 
                   AppointmentStatus.cancelled,
                   cancelledBy: 'doctor',
                 );
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("Cita rechazada"),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
+                if (!parentContext.mounted) return;
+                ScaffoldMessenger.of(parentContext).showSnackBar(
+                  const SnackBar(
+                    content: Text("Cita rechazada"),
+                    backgroundColor: Colors.red,
+                  ),
+                );
               } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text("Error al rechazar cita: $e"),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
+                if (!parentContext.mounted) return;
+                ScaffoldMessenger.of(parentContext).showSnackBar(
+                  SnackBar(
+                    content: Text("Error al rechazar cita: $e"),
+                    backgroundColor: Colors.red,
+                  ),
+                );
               }
             },
             style: ElevatedButton.styleFrom(
@@ -597,12 +584,11 @@ class _DoctorAppointmentsPageState extends State<DoctorAppointmentsPage> {
     );
   }
 
-  /**
-   * Actualiza el estado de una cita en Firestore
-   * @param appointmentId - ID de la cita
-   * @param newStatus - Nuevo estado de la cita
-   * @param cancelledBy - Opcional: quién canceló la cita ('patient' o 'doctor')
-   */
+  ///
+  /// Actualiza el estado de una cita en Firestore
+  /// @param appointmentId - ID de la cita
+  /// @param newStatus - Nuevo estado de la cita
+  /// @param cancelledBy - Opcional: quién canceló la cita ('patient' o 'doctor')
   Future<void> _updateAppointmentStatus(
     String appointmentId, 
     AppointmentStatus newStatus, {
@@ -633,28 +619,25 @@ class _DoctorAppointmentsPageState extends State<DoctorAppointmentsPage> {
       await _firestore.collection('citas').doc(appointmentId).update(updateData);
 
       // Cerrar indicador de carga
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
+      if (!mounted) return;
+      Navigator.of(context).pop();
     } catch (e) {
       // Cerrar indicador de carga si hay error
-      if (mounted) {
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Error al actualizar cita: $e"),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Error al actualizar cita: $e"),
+          backgroundColor: Colors.red,
+        ),
+      );
       throw Exception('Error al actualizar cita: $e');
     }
   }
 
-  /**
-   * Muestra los detalles del paciente
-   * @param appointment - Cita de la cual mostrar detalles del paciente
-   */
+  ///
+  /// Muestra los detalles del paciente
+  /// @param appointment - Cita de la cual mostrar detalles del paciente
   void _viewPatientDetails(AppointmentModel appointment) {
     showDialog(
       context: context,
@@ -688,10 +671,9 @@ class _DoctorAppointmentsPageState extends State<DoctorAppointmentsPage> {
     );
   }
 
-  /**
-   * Marca una cita como completada
-   * @param appointment - Cita a completar
-   */
+  ///
+  /// Marca una cita como completada
+  /// @param appointment - Cita a completar
   void _completeAppointment(AppointmentModel appointment) {
     showDialog(
       context: context,
@@ -708,23 +690,21 @@ class _DoctorAppointmentsPageState extends State<DoctorAppointmentsPage> {
               Navigator.of(context).pop();
               try {
                 await _updateAppointmentStatus(appointment.id, AppointmentStatus.completed);
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("Cita marcada como completada"),
-                      backgroundColor: Colors.blue,
-                    ),
-                  );
-                }
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text("Cita marcada como completada"),
+                    backgroundColor: Colors.blue,
+                  ),
+                );
               } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text("Error al completar cita: $e"),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text("Error al completar cita: $e"),
+                    backgroundColor: Colors.red,
+                  ),
+                );
               }
             },
             style: ElevatedButton.styleFrom(
@@ -738,12 +718,11 @@ class _DoctorAppointmentsPageState extends State<DoctorAppointmentsPage> {
     );
   }
 
-  /**
-   * Construye una fila de detalle para mostrar información
-   * @param label - Etiqueta del campo
-   * @param value - Valor del campo
-   * @return Widget - Fila de detalle
-   */
+  ///
+  /// Construye una fila de detalle para mostrar información
+  /// @param label - Etiqueta del campo
+  /// @param value - Valor del campo
+  /// @return Widget - Fila de detalle
   Widget _buildDetailRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),

@@ -63,11 +63,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
         }
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error al cargar datos: $e")),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error al cargar datos: $e")),
+      );
     }
   }
 
@@ -128,30 +127,29 @@ class _EditProfilePageState extends State<EditProfilePage> {
           .doc(user.uid)
           .update(updateData);
 
+      if (!mounted) return;
+
       setState(() => _loading = false);
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Información guardada exitosamente"),
-            backgroundColor: Colors.green,
-          ),
-        );
-        
-        // Volver a la página anterior
-        Navigator.pop(context, true); // true indica que se guardaron cambios
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Información guardada exitosamente"),
+          backgroundColor: Colors.green,
+        ),
+      );
+      
+      Navigator.pop(context, true); // true indica que se guardaron cambios
     } catch (e) {
+      if (!mounted) return;
+
       setState(() => _loading = false);
       
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Error al guardar: $e"),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Error al guardar: $e"),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -280,7 +278,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
                   // Selector de rol
                   DropdownButtonFormField<String>(
-                    value: _selectedRole,
+                    initialValue: _selectedRole,
                     decoration: const InputDecoration(
                       labelText: 'Rol',
                       prefixIcon: Icon(Icons.person_outline),

@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../services/firestore_service.dart';
 import '../services/migration_service.dart';
 import '../models/user_model.dart';
+import 'logger.dart';
 
 /// Helper para verificar y testear la integración
 class IntegrationHelper {
@@ -13,50 +14,50 @@ class IntegrationHelper {
   /// Verifica el estado de la integración
   static Future<Map<String, dynamic>> checkIntegrationStatus() async {
     try {
-      print('🔍 Verificando estado de la integración...\n');
+      logInfo('🔍 Verificando estado de la integración...\n');
 
       // 1. Verificar colecciones
       Map<String, dynamic> stats = await MigrationService.getCollectionStats();
       
-      print('📊 Estadísticas de Colecciones:');
-      print('   users (antigua): ${stats['users_old']} documentos');
-      print('   usuarios (nueva): ${stats['usuarios_new']} documentos ✅');
-      print('   appointments (antigua): ${stats['appointments_old']} documentos');
-      print('   citas (nueva): ${stats['citas_new']} documentos ✅');
-      print('   disponibilidad_medicos: ${stats['disponibilidad_medicos']} documentos ✅\n');
+      logInfo('📊 Estadísticas de Colecciones:');
+      logInfo('   users (antigua): ${stats['users_old']} documentos');
+      logInfo('   usuarios (nueva): ${stats['usuarios_new']} documentos ✅');
+      logInfo('   appointments (antigua): ${stats['appointments_old']} documentos');
+      logInfo('   citas (nueva): ${stats['citas_new']} documentos ✅');
+      logInfo('   disponibilidad_medicos: ${stats['disponibilidad_medicos']} documentos ✅\n');
 
       // 2. Verificar usuario actual
       User? currentUser = _auth.currentUser;
       if (currentUser != null) {
-        print('👤 Usuario Actual:');
-        print('   UID: ${currentUser.uid}');
-        print('   Email: ${currentUser.email}\n');
+        logInfo('👤 Usuario Actual:');
+        logInfo('   UID: ${currentUser.uid}');
+        logInfo('   Email: ${currentUser.email}\n');
 
         // Intentar cargar datos del usuario
         UserModel? userData = await FirestoreService.getUser(currentUser.uid);
         if (userData != null) {
-          print('✅ Datos del usuario cargados desde Firestore');
-          print('   Nombre: ${userData.name}');
-          print('   Es Doctor: ${userData.isDoctor}');
+          logInfo('✅ Datos del usuario cargados desde Firestore');
+          logInfo('   Nombre: ${userData.name}');
+          logInfo('   Es Doctor: ${userData.isDoctor}');
           if (userData.isDoctor) {
-            print('   Especialidad: ${userData.specialty}');
+            logInfo('   Especialidad: ${userData.specialty}');
           }
           if (userData.medicalHistory != null && userData.medicalHistory!.isNotEmpty) {
-            print('   Historial Médico: ${userData.medicalHistory}');
+            logInfo('   Historial Médico: ${userData.medicalHistory}');
           }
         } else {
-          print('⚠️ No se encontraron datos en Firestore para este usuario');
+          logInfo('⚠️ No se encontraron datos en Firestore para este usuario');
         }
       } else {
-        print('ℹ️ No hay usuario autenticado actualmente\n');
+        logInfo('ℹ️ No hay usuario autenticado actualmente\n');
       }
 
       // 3. Verificar si necesita migración
       bool needsMigration = await MigrationService.needsMigration();
       if (needsMigration) {
-        print('⚠️ HAY DATOS EN COLECCIONES ANTIGUAS QUE PUEDEN MIGRARSE\n');
+        logInfo('⚠️ HAY DATOS EN COLECCIONES ANTIGUAS QUE PUEDEN MIGRARSE\n');
       } else {
-        print('✅ No hay datos pendientes de migración\n');
+        logInfo('✅ No hay datos pendientes de migración\n');
       }
 
       return {
@@ -66,7 +67,7 @@ class IntegrationHelper {
         'needsMigration': needsMigration,
       };
     } catch (e) {
-      print('❌ Error al verificar integración: $e');
+      logInfo('❌ Error al verificar integración: $e');
       return {
         'success': false,
         'error': e.toString(),
@@ -77,7 +78,7 @@ class IntegrationHelper {
   /// Crea datos de prueba para testing
   static Future<void> createTestData() async {
     try {
-      print(' Creando datos de prueba...\n');
+      logInfo(' Creando datos de prueba...\n');
 
       // Crear un doctor de prueba
       String doctorId = 'test_doctor_${DateTime.now().millisecondsSinceEpoch}';
@@ -96,7 +97,7 @@ class IntegrationHelper {
       );
 
       await FirestoreService.createUser(testDoctor);
-      print('✅ Doctor de prueba creado: ${testDoctor.name}');
+      logInfo('✅ Doctor de prueba creado: ${testDoctor.name}');
 
       // Crear horarios disponibles para el doctor (próximos 3 días)
       for (int day = 1; day <= 3; day++) {
@@ -116,7 +117,7 @@ class IntegrationHelper {
           timeSlots,
         );
       }
-      print(' Horarios creados para los próximos 3 días\n');
+      logInfo(' Horarios creados para los próximos 3 días\n');
 
       // Crear un paciente de prueba
       String patientId = 'test_patient_${DateTime.now().millisecondsSinceEpoch}';
@@ -132,17 +133,17 @@ class IntegrationHelper {
       );
 
       await FirestoreService.createUser(testPatient);
-      print(' Paciente de prueba creado: ${testPatient.name}');
-      print('   Historial médico incluido\n');
+      logInfo(' Paciente de prueba creado: ${testPatient.name}');
+      logInfo('   Historial médico incluido\n');
 
-      print(' ¡Datos de prueba creados exitosamente!\n');
-      print(' Credenciales de prueba:');
-      print('   Doctor: doctor.prueba@test.com');
-      print('   Paciente: paciente.prueba@test.com');
-      print('   (Nota: Estos usuarios no tienen contraseña de Auth, solo datos en Firestore)\n');
+      logInfo(' ¡Datos de prueba creados exitosamente!\n');
+      logInfo(' Credenciales de prueba:');
+      logInfo('   Doctor: doctor.prueba@test.com');
+      logInfo('   Paciente: paciente.prueba@test.com');
+      logInfo('   (Nota: Estos usuarios no tienen contraseña de Auth, solo datos en Firestore)\n');
 
     } catch (e) {
-      print('❌ Error al crear datos de prueba: $e');
+      logInfo('❌ Error al crear datos de prueba: $e');
     }
   }
 
@@ -266,7 +267,7 @@ class IntegrationHelper {
   /// Limpia datos de prueba
   static Future<void> cleanTestData() async {
     try {
-      print('🧹 Limpiando datos de prueba...\n');
+      logInfo('🧹 Limpiando datos de prueba...\n');
 
       // Buscar y eliminar usuarios de prueba
       QuerySnapshot testUsers = await _firestore
@@ -276,33 +277,33 @@ class IntegrationHelper {
 
       for (var doc in testUsers.docs) {
         await doc.reference.delete();
-        print('🗑️ Usuario eliminado: ${doc.id}');
+        logInfo('🗑️ Usuario eliminado: ${doc.id}');
       }
 
-      print('\n✅ Datos de prueba eliminados\n');
+      logInfo('\n✅ Datos de prueba eliminados\n');
     } catch (e) {
-      print('❌ Error al limpiar datos: $e');
+      logInfo('❌ Error al limpiar datos: $e');
     }
   }
 
   /// Verifica la configuración de las reglas de Firestore
   static Future<bool> checkFirestoreRules() async {
     try {
-      print('🔒 Verificando reglas de Firestore...\n');
+      logInfo('🔒 Verificando reglas de Firestore...\n');
 
       User? user = _auth.currentUser;
       if (user == null) {
-        print('⚠️ No hay usuario autenticado para verificar las reglas');
+        logInfo('⚠️ No hay usuario autenticado para verificar las reglas');
         return false;
       }
 
       // Intentar leer la colección usuarios
       try {
         await _firestore.collection('usuarios').doc(user.uid).get();
-        print('✅ Reglas de lectura configuradas correctamente');
+        logInfo('✅ Reglas de lectura configuradas correctamente');
       } catch (e) {
-        print('❌ Error al leer usuarios: $e');
-        print('   Posiblemente las reglas no están configuradas');
+        logInfo('❌ Error al leer usuarios: $e');
+        logInfo('   Posiblemente las reglas no están configuradas');
         return false;
       }
 
@@ -311,15 +312,15 @@ class IntegrationHelper {
         await _firestore.collection('usuarios').doc(user.uid).update({
           'updatedAt': DateTime.now().millisecondsSinceEpoch,
         });
-        print('✅ Reglas de escritura configuradas correctamente\n');
+        logInfo('✅ Reglas de escritura configuradas correctamente\n');
         return true;
       } catch (e) {
-        print('❌ Error al escribir usuarios: $e');
-        print('   Posiblemente las reglas no están configuradas\n');
+        logInfo('❌ Error al escribir usuarios: $e');
+        logInfo('   Posiblemente las reglas no están configuradas\n');
         return false;
       }
     } catch (e) {
-      print('❌ Error al verificar reglas: $e\n');
+      logInfo('❌ Error al verificar reglas: $e\n');
       return false;
     }
   }

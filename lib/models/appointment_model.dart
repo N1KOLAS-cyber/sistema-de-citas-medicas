@@ -1,24 +1,24 @@
-/// APPOINTMENT MODEL - MODELO DE DATOS PARA CITAS MÉDICAS
-///
-/// Este archivo define la estructura de datos para las citas médicas del sistema.
-/// Incluye enums para estados y tipos de citas, y el modelo principal.
-///
-/// FUNCIONALIDADES:
-/// - Representación de citas médicas
-/// - Estados de citas (pendiente, confirmada, completada, cancelada)
-/// - Tipos de citas (consulta, seguimiento, emergencia, rutina)
-/// - Campos médicos (síntomas, diagnóstico, prescripción)
-/// - Conversión entre Map y objeto (fromMap/toMap)
-/// - Métodos de texto legible para UI
-///
-/// ESTRUCTURA:
-/// - Enums: AppointmentStatus, AppointmentType
-/// - Campos básicos: id, fechas, horarios, estado
-/// - Campos médicos: síntomas, diagnóstico, prescripción
-/// - Métodos de conversión y texto legible
-///
-/// VISUALIZACIÓN: Modelo de datos que representa las citas en la base de datos
-/// y proporciona información estructurada para la interfaz de usuario.
+// APPOINTMENT MODEL - MODELO DE DATOS PARA CITAS MÉDICAS
+//
+// Este archivo define la estructura de datos para las citas médicas del sistema.
+// Incluye enums para estados y tipos de citas, y el modelo principal.
+//
+// FUNCIONALIDADES:
+// - Representación de citas médicas
+// - Estados de citas (pendiente, confirmada, completada, cancelada)
+// - Tipos de citas (consulta, seguimiento, emergencia, rutina)
+// - Campos médicos (síntomas, diagnóstico, prescripción)
+// - Conversión entre Map y objeto (fromMap/toMap)
+// - Métodos de texto legible para UI
+//
+// ESTRUCTURA:
+// - Enums: AppointmentStatus, AppointmentType
+// - Campos básicos: id, fechas, horarios, estado
+// - Campos médicos: síntomas, diagnóstico, prescripción
+// - Métodos de conversión y texto legible
+//
+// VISUALIZACIÓN: Modelo de datos que representa las citas en la base de datos
+// y proporciona información estructurada para la interfaz de usuario.
 
 enum AppointmentStatus {
   pending,

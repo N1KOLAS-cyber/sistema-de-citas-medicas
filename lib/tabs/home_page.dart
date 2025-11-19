@@ -1,28 +1,27 @@
-/**
- * HOME PAGE - PÁGINA PRINCIPAL DEL SISTEMA DE CITAS MÉDICAS
- * 
- * Este archivo contiene la página principal (home) del sistema de citas médicas.
- * Es el dashboard central que se muestra después del login y funciona como el
- * punto de entrada principal para usuarios y doctores.
- * 
- * FUNCIONALIDADES PRINCIPALES:
- * - Dashboard personalizado según el tipo de usuario (paciente/doctor)
- * - Navegación entre diferentes secciones (Citas, Doctores, Perfil)
- * - Acciones rápidas específicas por rol
- * - Consejos médicos interactivos
- * - Estadísticas para doctores
- * - Botón flotante contextual
- * 
- * ESTRUCTURA:
- * - Header con saludo personalizado
- * - Estadísticas (solo para doctores)
- * - Acciones rápidas por rol
- * - Consejos médicos
- * - Navegación inferior con tabs
- * 
- * VISUALIZACIÓN: Página principal con diseño moderno, gradientes,
- * tarjetas informativas y navegación intuitiva.
- */
+//
+// HOME PAGE - PÁGINA PRINCIPAL DEL SISTEMA DE CITAS MÉDICAS
+//
+// Este archivo contiene la página principal (home) del sistema de citas médicas.
+// Es el dashboard central que se muestra después del login y funciona como el
+// punto de entrada principal para usuarios y doctores.
+//
+// FUNCIONALIDADES PRINCIPALES:
+// - Dashboard personalizado según el tipo de usuario (paciente/doctor)
+// - Navegación entre diferentes secciones (Citas, Doctores, Perfil)
+// - Acciones rápidas específicas por rol
+// - Consejos médicos interactivos
+// - Estadísticas para doctores
+// - Botón flotante contextual
+//
+// ESTRUCTURA:
+// - Header con saludo personalizado
+// - Estadísticas (solo para doctores)
+// - Acciones rápidas por rol
+// - Consejos médicos
+// - Navegación inferior con tabs
+//
+// VISUALIZACIÓN: Página principal con diseño moderno, gradientes,
+// tarjetas informativas y navegación intuitiva.
 
 import 'dart:math';
 import 'package:flutter/material.dart';
@@ -74,11 +73,10 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  /**
-   * Construye la página principal personalizada del dashboard
-   * Muestra contenido diferente según el tipo de usuario (doctor/paciente)
-   * @return Widget - Scaffold con el contenido principal
-   */
+  ///
+  /// Construye la página principal personalizada del dashboard
+  /// Muestra contenido diferente según el tipo de usuario (doctor/paciente)
+  /// @return Widget - Scaffold con el contenido principal
   Widget _buildHomePage() {
     return Scaffold(
       drawer: AppDrawer(user: widget.user),
@@ -96,7 +94,7 @@ class _HomePageState extends State<HomePage> {
                     onPressed: () => Scaffold.of(context).openDrawer(),
                     tooltip: 'Abrir menú lateral',
                     style: IconButton.styleFrom(
-                      backgroundColor: Colors.indigo.withOpacity(0.1),
+                      backgroundColor: Colors.indigo.withValues(alpha: 0.1),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -314,21 +312,20 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  /**
-   * Construye una tarjeta de estadísticas para doctores
-   * @param title - Título de la estadística
-   * @param value - Valor numérico a mostrar
-   * @param icon - Icono representativo
-   * @param color - Color del tema de la tarjeta
-   * @return Widget - Tarjeta con estadística
-   */
+  ///
+  /// Construye una tarjeta de estadísticas para doctores
+  /// @param title - Título de la estadística
+  /// @param value - Valor numérico a mostrar
+  /// @param icon - Icono representativo
+  /// @param color - Color del tema de la tarjeta
+  /// @return Widget - Tarjeta con estadística
   Widget _buildStatCard(String title, String value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -346,7 +343,7 @@ class _HomePageState extends State<HomePage> {
             title,
             style: TextStyle(
               fontSize: 12,
-              color: color.withOpacity(0.8),
+              color: color.withValues(alpha: 0.8),
             ),
             textAlign: TextAlign.center,
           ),
@@ -355,40 +352,37 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  /**
-   * Carga un consejo médico aleatorio desde Firestore
-   */
+  ///
+  /// Carga un consejo médico aleatorio desde Firestore
   void _loadRandomAdvice() async {
     if (!mounted) return;
     
     try {
       final advice = await AdviceService.getRandomAdvice();
-      if (mounted && advice.isNotEmpty) {
+      if (!mounted) return;
+      if (advice.isNotEmpty) {
         setState(() {
           _randomAdvice = advice;
         });
       }
     } catch (e) {
-      // Si hay algún error, mostrar un consejo por defecto aleatorio
-      if (mounted) {
-        final defaultAdvices = [
-          'La prevención es la mejor medicina. Realiza chequeos médicos regulares.',
-          'Mantén un estilo de vida saludable con ejercicio regular y una dieta balanceada.',
-          'Cuida tu salud visitando al médico regularmente.',
-          'Duerme bien, come saludable y haz ejercicio para mantenerte sano.',
-          'El agua es esencial para tu organismo, bebe al menos 8 vasos al día.',
-        ];
-        final random = Random();
-        setState(() {
-          _randomAdvice = defaultAdvices[random.nextInt(defaultAdvices.length)];
-        });
-      }
+      if (!mounted) return;
+      final defaultAdvices = [
+        'La prevención es la mejor medicina. Realiza chequeos médicos regulares.',
+        'Mantén un estilo de vida saludable con ejercicio regular y una dieta balanceada.',
+        'Cuida tu salud visitando al médico regularmente.',
+        'Duerme bien, come saludable y haz ejercicio para mantenerte sano.',
+        'El agua es esencial para tu organismo, bebe al menos 8 vasos al día.',
+      ];
+      final random = Random();
+      setState(() {
+        _randomAdvice = defaultAdvices[random.nextInt(defaultAdvices.length)];
+      });
     }
   }
 
-  /**
-   * Muestra un diálogo para editar citas existentes
-   */
+  ///
+  /// Muestra un diálogo para editar citas existentes
   void _showEditAppointmentDialog() async {
     User? currentUser = _auth.currentUser;
     if (currentUser == null) return;
@@ -398,8 +392,10 @@ class _HomePageState extends State<HomePage> {
           .collection('usuarios')
           .doc(currentUser.uid)
           .get();
+      if (!mounted) return;
       
       if (!userDoc.exists) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("No se encontraron datos del usuario")),
         );
@@ -415,6 +411,7 @@ class _HomePageState extends State<HomePage> {
           .where('patientId', isEqualTo: currentUser.uid)
           .where('status', whereIn: ['pending', 'confirmed'])
           .get();
+      if (!mounted) return;
 
       List<AppointmentModel> editableAppointments = appointmentsSnapshot.docs
           .map((doc) => AppointmentModel.fromMap(doc.data()))
@@ -425,7 +422,7 @@ class _HomePageState extends State<HomePage> {
       editableAppointments.sort((a, b) => a.appointmentDate.compareTo(b.appointmentDate));
 
       if (editableAppointments.isEmpty) {
-        // Si no hay citas editables, mostrar mensaje
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text("No tienes citas editables en este momento"),
@@ -475,28 +472,28 @@ class _HomePageState extends State<HomePage> {
         ),
       );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error: $e")),
       );
     }
   }
 
-  /**
-   * Formatea una fecha de cita para mostrar
-   */
+  ///
+  /// Formatea una fecha de cita para mostrar
   String _formatAppointmentDate(DateTime date) {
     return "${date.day}/${date.month}/${date.year}";
   }
 
-  /**
-   * Abre la página de edición de una cita
-   */
+  ///
+  /// Abre la página de edición de una cita
   void _editAppointment(AppointmentModel appointment, UserModel user) async {
     try {
       final doctorDoc = await _firestore
           .collection('usuarios')
           .doc(appointment.doctorId)
           .get();
+      if (!mounted) return;
       
       if (doctorDoc.exists) {
         final doctorData = doctorDoc.data()!;
@@ -513,20 +510,21 @@ class _HomePageState extends State<HomePage> {
           ),
         );
       } else {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("No se encontró información del doctor")),
         );
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error al editar cita: $e")),
       );
     }
   }
   
-  /**
-   * Refresca el consejo periódicamente cada 30 segundos
-   */
+  ///
+  /// Refresca el consejo periódicamente cada 30 segundos
   void _refreshAdvicePeriodically() {
     Future.delayed(const Duration(seconds: 30), () {
       if (mounted && _currentIndex == 0) {
@@ -536,11 +534,10 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  /**
-   * Construye la tarjeta de consejo médico aleatorio
-   * Muestra un consejo diferente cada vez que se carga la página
-   * @return Widget - Tarjeta con consejo médico aleatorio
-   */
+  ///
+  /// Construye la tarjeta de consejo médico aleatorio
+  /// Muestra un consejo diferente cada vez que se carga la página
+  /// @return Widget - Tarjeta con consejo médico aleatorio
   Widget _buildRandomAdviceCard() {
     return Card(
       elevation: 4,
@@ -559,7 +556,7 @@ class _HomePageState extends State<HomePage> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.teal.withOpacity(0.2),
+                      color: Colors.teal.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Icon(Icons.lightbulb, color: Colors.teal, size: 24),
@@ -596,10 +593,9 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  /**
-   * Construye los widgets de estadísticas de citas para pacientes
-   * @return Widget - Tarjetas con estadísticas de citas
-   */
+  ///
+  /// Construye los widgets de estadísticas de citas para pacientes
+  /// @return Widget - Tarjetas con estadísticas de citas
   Widget _buildAppointmentStats() {
     final User? currentUser = _auth.currentUser;
     if (currentUser == null) {
@@ -694,11 +690,10 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  /**
-   * Construye los widgets de estadísticas de citas para doctores
-   * Muestra las citas pendientes que deben aceptar
-   * @return Widget - Tarjetas con estadísticas de citas
-   */
+  ///
+  /// Construye los widgets de estadísticas de citas para doctores
+  /// Muestra las citas pendientes que deben aceptar
+  /// @return Widget - Tarjetas con estadísticas de citas
   Widget _buildDoctorAppointmentStats() {
     final User? currentUser = _auth.currentUser;
     if (currentUser == null) {
@@ -773,15 +768,14 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  /**
-   * Construye una tarjeta de acción rápida
-   * @param title - Título de la acción
-   * @param subtitle - Descripción de la acción
-   * @param icon - Icono representativo
-   * @param color - Color del tema
-   * @param onTap - Función a ejecutar al tocar
-   * @return Widget - Tarjeta de acción
-   */
+  ///
+  /// Construye una tarjeta de acción rápida
+  /// @param title - Título de la acción
+  /// @param subtitle - Descripción de la acción
+  /// @param icon - Icono representativo
+  /// @param color - Color del tema
+  /// @param onTap - Función a ejecutar al tocar
+  /// @return Widget - Tarjeta de acción
   Widget _buildActionCard(
     String title,
     String subtitle,
@@ -796,7 +790,7 @@ class _HomePageState extends State<HomePage> {
         leading: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(icon, color: color, size: 24),

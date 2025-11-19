@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
 import '../models/doctor_availability_model.dart';
+import '../utils/logger.dart';
 import 'firestore_service.dart';
 
 /// Servicio para crear horarios en masa para múltiples doctores
@@ -26,7 +27,7 @@ class BulkAvailabilityService {
     DateTime? startDate,
   }) async {
     try {
-      print('🔄 Iniciando creación masiva de horarios...\n');
+      logInfo('🔄 Iniciando creación masiva de horarios...\n');
 
       DateTime baseDate = startDate ?? DateTime.now().add(const Duration(days: 1));
       
@@ -37,7 +38,7 @@ class BulkAvailabilityService {
           .get();
 
       if (doctorsSnapshot.docs.isEmpty) {
-        print('⚠️ No se encontraron doctores en el sistema');
+        logInfo('⚠️ No se encontraron doctores en el sistema');
         return {'success': false, 'error': 'No hay doctores'};
       }
 
@@ -45,14 +46,14 @@ class BulkAvailabilityService {
           .map((doc) => UserModel.fromMap(doc.data() as Map<String, dynamic>))
           .toList();
 
-      print('👨‍⚕️ Encontrados ${doctors.length} doctores');
-      print('📅 Creando horarios para los próximos $daysAhead días\n');
+      logInfo('👨‍⚕️ Encontrados ${doctors.length} doctores');
+      logInfo('📅 Creando horarios para los próximos $daysAhead días\n');
 
       int totalSlotsCreated = 0;
       int totalDoctorsProcessed = 0;
 
       for (UserModel doctor in doctors) {
-        print('Procesando: Dr. ${doctor.name} (${doctor.specialty})');
+        logInfo('Procesando: Dr. ${doctor.name} (${doctor.specialty})');
         
         int slotsForDoctor = 0;
 
@@ -72,7 +73,7 @@ class BulkAvailabilityService {
               );
 
           if (existingSlots.isNotEmpty) {
-            print('  ⏭️  ${_formatDate(targetDate)}: Ya tiene ${existingSlots.length} horarios, saltando...');
+            logInfo('  ⏭️  ${_formatDate(targetDate)}: Ya tiene ${existingSlots.length} horarios, saltando...');
             continue;
           }
 
@@ -105,24 +106,24 @@ class BulkAvailabilityService {
             );
             
             slotsForDoctor += timeSlots.length;
-            print('  ✅ ${_formatDate(targetDate)}: ${timeSlots.length} horarios creados');
+            logInfo('  ✅ ${_formatDate(targetDate)}: ${timeSlots.length} horarios creados');
           } catch (e) {
-            print('  ❌ Error en ${_formatDate(targetDate)}: $e');
+            logInfo('  ❌ Error en ${_formatDate(targetDate)}: $e');
           }
         }
 
         totalSlotsCreated += slotsForDoctor;
         totalDoctorsProcessed++;
-        print('  Total: $slotsForDoctor horarios creados para este doctor\n');
+        logInfo('  Total: $slotsForDoctor horarios creados para este doctor\n');
       }
 
-      print('════════════════════════════════════════');
-      print('✅ PROCESO COMPLETADO');
-      print('════════════════════════════════════════');
-      print('Doctores procesados: $totalDoctorsProcessed');
-      print('Total de horarios creados: $totalSlotsCreated');
-      print('Promedio por doctor: ${(totalSlotsCreated / totalDoctorsProcessed).toStringAsFixed(0)}');
-      print('════════════════════════════════════════\n');
+      logInfo('════════════════════════════════════════');
+      logInfo('✅ PROCESO COMPLETADO');
+      logInfo('════════════════════════════════════════');
+      logInfo('Doctores procesados: $totalDoctorsProcessed');
+      logInfo('Total de horarios creados: $totalSlotsCreated');
+      logInfo('Promedio por doctor: ${(totalSlotsCreated / totalDoctorsProcessed).toStringAsFixed(0)}');
+      logInfo('════════════════════════════════════════\n');
 
       return {
         'success': true,
@@ -130,7 +131,7 @@ class BulkAvailabilityService {
         'totalSlots': totalSlotsCreated,
       };
     } catch (e) {
-      print('❌ Error en creación masiva: $e');
+      logInfo('❌ Error en creación masiva: $e');
       return {
         'success': false,
         'error': e.toString(),
@@ -196,7 +197,7 @@ class BulkAvailabilityService {
 
       return totalCreated;
     } catch (e) {
-      print('Error al crear horarios: $e');
+      logInfo('Error al crear horarios: $e');
       return 0;
     }
   }
@@ -219,7 +220,7 @@ class BulkAvailabilityService {
 
       return deletedCount;
     } catch (e) {
-      print('Error al eliminar horarios: $e');
+      logInfo('Error al eliminar horarios: $e');
       return 0;
     }
   }

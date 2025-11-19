@@ -1,22 +1,22 @@
-/**
- * ADVICE SERVICE - SERVICIO DE CONSEJOS MÉDICOS
- * 
- * Este archivo contiene métodos para obtener consejos médicos aleatorios
- * desde una colección en Firestore.
- */
+//
+// ADVICE SERVICE - SERVICIO DE CONSEJOS MÉDICOS
+//
+// Este archivo contiene métodos para obtener consejos médicos aleatorios
+// desde una colección en Firestore.
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:math';
 import 'dart:async';
 
+import '../utils/logger.dart';
+
 class AdviceService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static const String _adviceCollection = 'consejos_medicos';
 
-  /**
-   * Obtiene un consejo médico aleatorio de la colección
-   * @return Future<String> - Texto del consejo médico
-   */
+  ///
+  /// Obtiene un consejo médico aleatorio de la colección.
+  /// Devuelve un Future con el texto del consejo médico.
   static Future<String> getRandomAdvice() async {
     try {
       // Obtener todos los consejos con timeout
@@ -50,11 +50,11 @@ class AdviceService {
       return consejo.toString();
     } on TimeoutException {
       // En caso de timeout, retornar un consejo por defecto
-      print('Timeout al cargar consejos médicos');
+      logInfo('Timeout al cargar consejos médicos');
       return 'La prevención es la mejor medicina. Realiza chequeos médicos regulares.';
     } catch (e) {
       // En caso de error, retornar un consejo por defecto
-      print('Error al obtener consejo: $e');
+      logInfo('Error al obtener consejo: $e');
       // Retornar un consejo por defecto que siempre esté disponible
       final defaultAdvices = [
         'Mantén un estilo de vida saludable con ejercicio regular y una dieta balanceada.',
@@ -68,10 +68,9 @@ class AdviceService {
     }
   }
 
-  /**
-   * Inicializa la colección con 50 consejos médicos si no existe
-   * Este método debería ejecutarse una vez desde la consola de Firebase o desde admin tools
-   */
+  ///
+  /// Inicializa la colección con 50 consejos médicos si no existe
+  /// Este método debería ejecutarse una vez desde la consola de Firebase o desde admin tools
   static Future<void> initializeAdvices() async {
     final List<String> consejos = [
      'Bebe al menos 8 vasos de agua al día para mantenerte hidratado.',
@@ -149,7 +148,7 @@ class AdviceService {
 
       await batch.commit();
     } catch (e) {
-      print('Error al inicializar consejos: $e');
+      logInfo('Error al inicializar consejos: $e');
     }
   }
 }

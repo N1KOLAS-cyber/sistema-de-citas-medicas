@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../services/firestore_service.dart';
+import '../utils/logger.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -60,6 +61,8 @@ class _RegisterPageState extends State<RegisterPage> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
+      if (!mounted) return;
+      if (!mounted) return;
 
       if (userCredential.user != null) {
         Navigator.of(context).pop(); // Cerrar loading INMEDIATAMENTE
@@ -83,34 +86,34 @@ class _RegisterPageState extends State<RegisterPage> {
 
         // Usar FirestoreService para guardar en la colección 'usuarios'
         FirestoreService.createUser(newUser).catchError((error) {
-          print('⚠️ Error al guardar en Firestore (no crítico): $error');
+          logInfo('⚠️ Error al guardar en Firestore (no crítico): $error');
         });
 
         // Mostrar mensaje de éxito y regresar al login
-        if (mounted) {
-          showDialog(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: const Text("¡Registro Exitoso!"),
-              content: Text(
-                _isDoctor
-                    ? "¡Bienvenido Dr. ${_nameController.text}!\n\nTu cuenta profesional ha sido creada. Ahora puedes iniciar sesión y gestionar tu disponibilidad."
-                    : "¡Bienvenido ${_nameController.text}!\n\nTu cuenta ha sido creada. Ahora puedes iniciar sesión y agendar citas.",
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop(); // Cerrar diálogo
-                    Navigator.of(context).pop(); // Regresar al login
-                  },
-                  child: const Text("Iniciar Sesión"),
-                ),
-              ],
+        if (!mounted) return;
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text("¡Registro Exitoso!"),
+            content: Text(
+              _isDoctor
+                  ? "¡Bienvenido Dr. ${_nameController.text}!\n\nTu cuenta profesional ha sido creada. Ahora puedes iniciar sesión y gestionar tu disponibilidad."
+                  : "¡Bienvenido ${_nameController.text}!\n\nTu cuenta ha sido creada. Ahora puedes iniciar sesión y agendar citas.",
             ),
-          );
-        }
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop(); // Cerrar diálogo
+                  Navigator.of(context).pop(); // Regresar al login
+                },
+                child: const Text("Iniciar Sesión"),
+              ),
+            ],
+          ),
+        );
       }
     } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
       Navigator.of(context).pop(); // Cerrar loading
       String message = "";
       if (e.code == 'weak-password') {
@@ -124,6 +127,7 @@ class _RegisterPageState extends State<RegisterPage> {
       }
       _showErrorDialog(message);
     } catch (e) {
+      if (!mounted) return;
       Navigator.of(context).pop(); // Cerrar loading
       _showErrorDialog('Error inesperado: $e');
     }
@@ -297,7 +301,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 
                 // Especialidad
                 DropdownButtonFormField<String>(
-                  value: _selectedSpecialty,
+                  initialValue: _selectedSpecialty,
                   decoration: const InputDecoration(
                     labelText: "Especialidad",
                     border: OutlineInputBorder(),

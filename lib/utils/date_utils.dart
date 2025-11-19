@@ -102,7 +102,7 @@ class AppDateUtils {
   // Format duration in minutes to readable format
   static String formatDuration(int minutes) {
     if (minutes < 60) {
-      return '${minutes} min';
+      return '$minutes min';
     } else {
       final hours = minutes ~/ 60;
       final remainingMinutes = minutes % 60;

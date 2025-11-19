@@ -1,26 +1,25 @@
-/**
- * APPOINTMENTS PAGE - PÁGINA DE CITAS DEL USUARIO
- * 
- * Este archivo contiene la página que muestra las citas del usuario actual.
- * Permite ver, filtrar y gestionar las citas médicas.
- * 
- * FUNCIONALIDADES:
- * - Lista de citas del usuario con información detallada
- * - Filtros por estado (Todas, Próximas, Canceladas)
- * - Visualización de detalles completos de cada cita
- * - Cancelación de citas (funcionalidad en desarrollo)
- * - Navegación a creación de nuevas citas
- * - Acceso a mensajes con doctores
- * 
- * ESTRUCTURA:
- * - AppBar con filtros desplegables
- * - Lista de citas con tarjetas informativas
- * - Botones flotantes para acciones rápidas
- * - Diálogos de confirmación y detalles
- * 
- * VISUALIZACIÓN: Página con diseño de tarjetas, filtros intuitivos,
- * información clara de cada cita y botones de acción contextuales.
- */
+//
+// APPOINTMENTS PAGE - PÁGINA DE CITAS DEL USUARIO
+//
+// Este archivo contiene la página que muestra las citas del usuario actual.
+// Permite ver, filtrar y gestionar las citas médicas.
+//
+// FUNCIONALIDADES:
+// - Lista de citas del usuario con información detallada
+// - Filtros por estado (Todas, Próximas, Canceladas)
+// - Visualización de detalles completos de cada cita
+// - Cancelación de citas (funcionalidad en desarrollo)
+// - Navegación a creación de nuevas citas
+// - Acceso a mensajes con doctores
+//
+// ESTRUCTURA:
+// - AppBar con filtros desplegables
+// - Lista de citas con tarjetas informativas
+// - Botones flotantes para acciones rápidas
+// - Diálogos de confirmación y detalles
+//
+// VISUALIZACIÓN: Página con diseño de tarjetas, filtros intuitivos,
+// información clara de cada cita y botones de acción contextuales.
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -52,9 +51,8 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
     _checkUserType();
   }
 
-  /**
-   * Verifica si el usuario actual es doctor
-   */
+  ///
+  /// Verifica si el usuario actual es doctor
   Future<void> _checkUserType() async {
     User? currentUser = _auth.currentUser;
     if (currentUser != null) {
@@ -240,17 +238,15 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showCreateOrEditDialog,
-        child: const Icon(Icons.add),
         backgroundColor: Colors.indigo,
         tooltip: 'Agendar o editar cita',
+        child: const Icon(Icons.add),
       ),
     );
   }
 
-  /**
-   * Obtiene el stream de citas del usuario actual desde Firestore
-   * @return Stream<QuerySnapshot> - Stream de citas del usuario
-   */
+  ///
+  /// Obtiene el stream de citas del usuario actual desde Firestore.
   Stream<QuerySnapshot> _getAppointmentsStream() {
     User? currentUser = _auth.currentUser;
     
@@ -270,11 +266,10 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
         .snapshots();
   }
 
-  /**
-   * Construye la tarjeta de información de una cita
-   * @param appointment - Modelo de la cita a mostrar
-   * @return Widget - Tarjeta con información de la cita
-   */
+  ///
+  /// Construye la tarjeta de información de una cita
+  /// @param appointment - Modelo de la cita a mostrar
+  /// @return Widget - Tarjeta con información de la cita
   Widget _buildAppointmentCard(AppointmentModel appointment) {
     Color statusColor = _getStatusColor(appointment.status);
     
@@ -294,9 +289,9 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
+                    color: statusColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: statusColor.withOpacity(0.3)),
+                    border: Border.all(color: statusColor.withValues(alpha: 0.3)),
                   ),
                   child: Text(
                     appointment.statusText,
@@ -460,11 +455,10 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
     );
   }
 
-  /**
-   * Obtiene el color correspondiente al estado de una cita
-   * @param status - Estado de la cita
-   * @return Color - Color representativo del estado
-   */
+  ///
+  /// Obtiene el color correspondiente al estado de una cita
+  /// @param status - Estado de la cita
+  /// @return Color - Color representativo del estado
   Color _getStatusColor(AppointmentStatus status) {
     switch (status) {
       case AppointmentStatus.pending:
@@ -478,19 +472,17 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
     }
   }
 
-  /**
-   * Formatea una fecha para mostrar en la interfaz
-   * @param date - Fecha a formatear
-   * @return String - Fecha formateada
-   */
+  ///
+  /// Formatea una fecha para mostrar en la interfaz
+  /// @param date - Fecha a formatear
+  /// @return String - Fecha formateada
   String _formatDate(DateTime date) {
     return "${date.day}/${date.month}/${date.year}";
   }
 
-  /**
-   * Muestra diálogo de confirmación para cancelar una cita
-   * @param appointment - Cita a cancelar
-   */
+  ///
+  /// Muestra diálogo de confirmación para cancelar una cita
+  /// @param appointment - Cita a cancelar
   void _cancelAppointment(AppointmentModel appointment) {
     showDialog(
       context: context,
@@ -518,10 +510,9 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
     );
   }
 
-  /**
-   * Realiza la cancelación de una cita
-   * @param appointment - Cita a cancelar
-   */
+  ///
+  /// Realiza la cancelación de una cita
+  /// @param appointment - Cita a cancelar
   Future<void> _performCancelAppointment(AppointmentModel appointment) async {
     try {
       // Mostrar indicador de carga
@@ -564,10 +555,9 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
     }
   }
 
-  /**
-   * Muestra los detalles completos de una cita en un diálogo
-   * @param appointment - Cita de la cual mostrar detalles
-   */
+  ///
+  /// Muestra los detalles completos de una cita en un diálogo
+  /// @param appointment - Cita de la cual mostrar detalles
   void _viewAppointmentDetails(AppointmentModel appointment) {
     showDialog(
       context: context,
@@ -607,12 +597,11 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
     );
   }
 
-  /**
-   * Construye una fila de detalle para mostrar información
-   * @param label - Etiqueta del campo
-   * @param value - Valor del campo
-   * @return Widget - Fila de detalle
-   */
+  ///
+  /// Construye una fila de detalle para mostrar información
+  /// @param label - Etiqueta del campo
+  /// @param value - Valor del campo
+  /// @return Widget - Fila de detalle
   Widget _buildDetailRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -634,9 +623,8 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
     );
   }
 
-  /**
-   * Muestra un diálogo para crear nueva cita o editar una existente
-   */
+  ///
+  /// Muestra un diálogo para crear nueva cita o editar una existente
   void _showCreateOrEditDialog() async {
     User? currentUser = _auth.currentUser;
     if (currentUser == null) return;
@@ -646,8 +634,10 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
           .collection('usuarios')
           .doc(currentUser.uid)
           .get();
+      if (!mounted) return;
       
       if (!userDoc.exists) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("No se encontraron datos del usuario")),
         );
@@ -664,6 +654,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
           .where('patientId', isEqualTo: currentUser.uid)
           .where('status', whereIn: ['pending', 'confirmed'])
           .get();
+      if (!mounted) return;
 
       List<AppointmentModel> editableAppointments = appointmentsSnapshot.docs
           .map((doc) => AppointmentModel.fromMap(doc.data()))
@@ -675,6 +666,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
 
       if (editableAppointments.isEmpty) {
         // Si no hay citas editables, ir directamente a crear nueva cita
+        if (!mounted) return;
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -687,7 +679,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
       // Mostrar diálogo con opciones
       showDialog(
         context: context,
-        builder: (context) => AlertDialog(
+        builder: (dialogContext) => AlertDialog(
           title: const Text("Gestionar Citas"),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -696,7 +688,8 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                 leading: const Icon(Icons.add_circle, color: Colors.indigo),
                 title: const Text("Crear Nueva Cita"),
                 onTap: () {
-                  Navigator.of(context).pop();
+                  Navigator.of(dialogContext).pop();
+                  if (!mounted) return;
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -730,7 +723,8 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                         style: const TextStyle(fontSize: 12),
                       ),
                       onTap: () {
-                        Navigator.of(context).pop();
+                        Navigator.of(dialogContext).pop();
+                        if (!mounted) return;
                         _editAppointment(appointment, user);
                       },
                     );
@@ -741,24 +735,24 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => Navigator.of(dialogContext).pop(),
               child: const Text("Cancelar"),
             ),
           ],
         ),
       );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error: $e")),
       );
     }
   }
 
-  /**
-   * Abre la página de edición de una cita
-   * @param appointment - Cita a editar
-   * @param user - Usuario paciente
-   */
+  ///
+  /// Abre la página de edición de una cita
+  /// @param appointment - Cita a editar
+  /// @param user - Usuario paciente
   void _editAppointment(AppointmentModel appointment, UserModel user) async {
     // Obtener el doctor de la cita
     try {
@@ -766,6 +760,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
           .collection('usuarios')
           .doc(appointment.doctorId)
           .get();
+      if (!mounted) return;
       
       if (doctorDoc.exists) {
         final doctorData = doctorDoc.data()!;
@@ -782,11 +777,14 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
           ),
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("No se encontró información del doctor")),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("No se encontró información del doctor")),
+          );
+        }
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error al editar cita: $e")),
       );

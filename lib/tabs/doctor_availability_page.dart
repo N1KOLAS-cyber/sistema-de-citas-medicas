@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
 import '../models/doctor_availability_model.dart';
 import '../services/firestore_service.dart';
+import '../utils/logger.dart';
 
 /// Página para que los doctores gestionen su disponibilidad de horarios
 class DoctorAvailabilityPage extends StatefulWidget {
@@ -183,11 +184,11 @@ class _DoctorAvailabilityPageState extends State<DoctorAvailabilityPage> {
       floatingActionButton: _loading
           ? null
           : FloatingActionButton(
-        onPressed: _createCustomTimeSlot,
-        backgroundColor: Colors.indigo,
-        child: const Icon(Icons.add, color: Colors.white),
-        tooltip: 'Agregar horario personalizado',
-      ),
+              onPressed: _createCustomTimeSlot,
+              backgroundColor: Colors.indigo,
+              tooltip: 'Agregar horario personalizado',
+              child: const Icon(Icons.add, color: Colors.white),
+            ),
     );
   }
 
@@ -280,7 +281,7 @@ class _DoctorAvailabilityPageState extends State<DoctorAvailabilityPage> {
       ),
     );
 
-    if (confirm != true) return;
+    if (!mounted || confirm != true) return;
 
     setState(() => _loading = true);
 
@@ -353,7 +354,7 @@ class _DoctorAvailabilityPageState extends State<DoctorAvailabilityPage> {
       },
     );
 
-    if (startTime == null) return;
+    if (!mounted || startTime == null) return;
 
     TimeOfDay? endTime = await showTimePicker(
       context: context,
@@ -373,7 +374,7 @@ class _DoctorAvailabilityPageState extends State<DoctorAvailabilityPage> {
       },
     );
 
-    if (endTime == null) return;
+    if (!mounted || endTime == null) return;
 
     setState(() => _loading = true);
 
@@ -418,27 +419,27 @@ class _DoctorAvailabilityPageState extends State<DoctorAvailabilityPage> {
 
       await FirestoreService.createAvailability(availability);
 
+      if (!mounted) return;
+
       setState(() => _loading = false);
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Horario creado exitosamente'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Horario creado exitosamente'),
+          backgroundColor: Colors.green,
+        ),
+      );
     } catch (e) {
+      if (!mounted) return;
+
       setState(() => _loading = false);
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -462,28 +463,28 @@ class _DoctorAvailabilityPageState extends State<DoctorAvailabilityPage> {
       ),
     );
 
-    if (confirm != true) return;
+    if (!mounted || confirm != true) return;
 
     try {
       await FirestoreService.deleteAvailability(slot.id);
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Horario eliminado'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Horario eliminado'),
+          backgroundColor: Colors.green,
+        ),
+      );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al eliminar: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al eliminar: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -568,36 +569,36 @@ class _DoctorAvailabilityPageState extends State<DoctorAvailabilityPage> {
           deletedCount++;
         } catch (e) {
           errorCount++;
-          print('Error al eliminar horario ${slot.id}: $e');
+        logInfo('Error al eliminar horario ${slot.id}: $e');
         }
       }
 
+      if (!mounted) return;
+
       setState(() => _loading = false);
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              errorCount == 0
-                  ? '✅ $deletedCount horarios eliminados exitosamente'
-                  : '⚠️ $deletedCount eliminados, $errorCount fallaron',
-            ),
-            backgroundColor: errorCount == 0 ? Colors.green : Colors.orange,
-            duration: const Duration(seconds: 3),
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            errorCount == 0
+                ? '✅ $deletedCount horarios eliminados exitosamente'
+                : '⚠️ $deletedCount eliminados, $errorCount fallaron',
           ),
-        );
-      }
+          backgroundColor: errorCount == 0 ? Colors.green : Colors.orange,
+          duration: const Duration(seconds: 3),
+        ),
+      );
     } catch (e) {
+      if (!mounted) return;
+
       setState(() => _loading = false);
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 }

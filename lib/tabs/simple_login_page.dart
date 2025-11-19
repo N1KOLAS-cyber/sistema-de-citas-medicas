@@ -1,32 +1,32 @@
-/**
- * SIMPLE LOGIN PAGE - PÁGINA DE INICIO DE SESIÓN
- * 
- * Este archivo contiene la página de login principal del sistema.
- * Permite autenticación con email/contraseña y acceso rápido para testing.
- * 
- * FUNCIONALIDADES:
- * - Login con email y contraseña
- * - Login anónimo para usuarios invitados
- * - Acceso rápido para admin y usuario de prueba
- * - Navegación a registro y recuperación de contraseña
- * - Validación de formularios
- * - Manejo de errores de autenticación
- * 
- * ESTRUCTURA:
- * - Formulario de login con validación
- * - Botones de acceso rápido (Admin, Usuario, Invitado)
- * - Navegación a otras páginas
- * - Logo y branding de la aplicación
- * 
- * VISUALIZACIÓN: Página de login con diseño moderno, logo de la app,
- * formulario centrado y botones de acceso rápido para facilitar testing.
- */
+//
+// SIMPLE LOGIN PAGE - PÁGINA DE INICIO DE SESIÓN
+//
+// Este archivo contiene la página de login principal del sistema.
+// Permite autenticación con email/contraseña y acceso rápido para testing.
+//
+// FUNCIONALIDADES:
+// - Login con email y contraseña
+// - Login anónimo para usuarios invitados
+// - Acceso rápido para admin y usuario de prueba
+// - Navegación a registro y recuperación de contraseña
+// - Validación de formularios
+// - Manejo de errores de autenticación
+//
+// ESTRUCTURA:
+// - Formulario de login con validación
+// - Botones de acceso rápido (Admin, Usuario, Invitado)
+// - Navegación a otras páginas
+// - Logo y branding de la aplicación
+//
+// VISUALIZACIÓN: Página de login con diseño moderno, logo de la app,
+// formulario centrado y botones de acceso rápido para facilitar testing.
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../constants/app_constants.dart';
 import '../services/firestore_service.dart';
+import '../utils/logger.dart';
 import 'home_page.dart';
 import 'register_page.dart';
 import 'forgot_password_page.dart';
@@ -45,10 +45,9 @@ class _SimpleLoginPageState extends State<SimpleLoginPage> {
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  /**
-   * Función principal de login con email y contraseña
-   * Maneja autenticación, carga de datos de usuario y navegación
-   */
+  ///
+  /// Función principal de login con email y contraseña
+  /// Maneja autenticación, carga de datos de usuario y navegación
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -63,6 +62,7 @@ class _SimpleLoginPageState extends State<SimpleLoginPage> {
         email: emailController.text.trim(),
         password: passwordController.text,
       );
+      if (!mounted) return;
 
       if (userCredential.user != null) {
         // Intentar cargar datos del usuario desde Firestore
@@ -70,9 +70,10 @@ class _SimpleLoginPageState extends State<SimpleLoginPage> {
         
         try {
           user = await FirestoreService.getUser(userCredential.user!.uid);
-          print('✅ Usuario cargado de Firestore: ${user?.name}, role: ${user?.role}, isDoctor: ${user?.isDoctor}');
+          if (!mounted) return;
+          logInfo('✅ Usuario cargado de Firestore: ${user?.name}, role: ${user?.role}, isDoctor: ${user?.isDoctor}');
         } catch (e) {
-          print('⚠️ Error al cargar datos de Firestore: $e');
+          logInfo('⚠️ Error al cargar datos de Firestore: $e');
         }
         
           // Si no hay datos en Firestore, crear usuario básico
@@ -113,32 +114,32 @@ class _SimpleLoginPageState extends State<SimpleLoginPage> {
           
           // Intentar crear el documento en Firestore en segundo plano
           FirestoreService.createUser(user).catchError((error) {
-            print('⚠️ Error al crear usuario en Firestore: $error');
+            logInfo('⚠️ Error al crear usuario en Firestore: $error');
           });
           
-          print('✅ Usuario nuevo creado: ${user.name}, role: ${user.role}, isDoctor: ${user.isDoctor}');
+          logInfo('✅ Usuario nuevo creado: ${user.name}, role: ${user.role}, isDoctor: ${user.isDoctor}');
         } else {
           // Usuario existe, verificar que tenga rol
           if (user.role == null && user.isDoctor) {
             // Actualizar rol si falta pero isDoctor es true
             user = user.copyWith(role: 'Médico');
             FirestoreService.updateUser(user).catchError((error) {
-              print('⚠️ Error al actualizar rol: $error');
+              logInfo('⚠️ Error al actualizar rol: $error');
             });
           }
         }
         
         Navigator.of(context).pop(); // Cerrar loading
+        if (!mounted) return;
         
-        if (mounted) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (context) => HomePage(user: user!),
-            ),
-          );
-        }
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => HomePage(user: user!),
+          ),
+        );
       }
     } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
       Navigator.of(context).pop(); // Cerrar loading
       String message = "";
       if (e.code == 'user-not-found') {
@@ -154,15 +155,15 @@ class _SimpleLoginPageState extends State<SimpleLoginPage> {
       }
       _showErrorDialog(message);
     } catch (e) {
+      if (!mounted) return;
       Navigator.of(context).pop(); // Cerrar loading
       _showErrorDialog('Error inesperado: $e');
     }
   }
 
-  /**
-   * Muestra un diálogo de error con el mensaje especificado
-   * @param message - Mensaje de error a mostrar
-   */
+  ///
+  /// Muestra un diálogo de error con el mensaje especificado
+  /// @param message - Mensaje de error a mostrar
   void _showErrorDialog(String message) {
     showDialog(
       context: context,
@@ -179,30 +180,27 @@ class _SimpleLoginPageState extends State<SimpleLoginPage> {
     );
   }
 
-  /**
-   * Login rápido como administrador usando credenciales predefinidas
-   * Facilita el testing y desarrollo
-   */
+  ///
+  /// Login rápido como administrador usando credenciales predefinidas
+  /// Facilita el testing y desarrollo
   Future<void> _loginAsAdmin() async {
     emailController.text = AppConstants.adminEmail;
     passwordController.text = AppConstants.adminPassword;
     await _login();
   }
 
-  /**
-   * Login rápido como usuario de prueba usando credenciales predefinidas
-   * Facilita el testing con un usuario normal
-   */
+  ///
+  /// Login rápido como usuario de prueba usando credenciales predefinidas
+  /// Facilita el testing con un usuario normal
   Future<void> _loginAsTestUser() async {
     emailController.text = AppConstants.testUserEmail;
     passwordController.text = AppConstants.testUserPassword;
     await _login();
   }
 
-  /**
-   * Login anónimo para usuarios invitados
-   * Permite acceso sin registro para explorar la aplicación
-   */
+  ///
+  /// Login anónimo para usuarios invitados
+  /// Permite acceso sin registro para explorar la aplicación
   Future<void> _loginAnonymously() async {
     showDialog(
       context: context,
@@ -212,6 +210,7 @@ class _SimpleLoginPageState extends State<SimpleLoginPage> {
 
     try {
       UserCredential userCredential = await _auth.signInAnonymously();
+      if (!mounted) return;
       
       if (userCredential.user != null) {
         // Crear usuario anónimo básico
@@ -225,6 +224,7 @@ class _SimpleLoginPageState extends State<SimpleLoginPage> {
           isDoctor: false,
         );
         
+        if (!mounted) return;
         Navigator.of(context).pop(); // Cerrar loading
         
         Navigator.of(context).pushReplacement(
@@ -234,14 +234,14 @@ class _SimpleLoginPageState extends State<SimpleLoginPage> {
         );
       }
     } catch (e) {
+      if (!mounted) return;
       Navigator.of(context).pop(); // Cerrar loading
       _showErrorDialog('Error al iniciar sesión anónima: $e');
     }
   }
 
-  /**
-   * Navega a la página de registro
-   */
+  ///
+  /// Navega a la página de registro
   void _navigateToRegister() {
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -269,7 +269,7 @@ class _SimpleLoginPageState extends State<SimpleLoginPage> {
                   color: Colors.white,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.grey.withOpacity(0.3),
+                      color: Colors.grey.withValues(alpha: 0.3),
                       spreadRadius: 2,
                       blurRadius: 5,
                       offset: const Offset(0, 3),

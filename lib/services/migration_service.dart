@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../utils/logger.dart';
+
 /// Servicio para migrar datos de colecciones antiguas a las nuevas
 class MigrationService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -8,7 +10,7 @@ class MigrationService {
   /// Retorna el número de usuarios migrados
   static Future<int> migrateUsersToUsuarios() async {
     try {
-      print('🔄 Iniciando migración de users a usuarios...');
+      logInfo('🔄 Iniciando migración de users a usuarios...');
       
       // Obtener todos los documentos de 'users'
       QuerySnapshot oldUsers = await _firestore
@@ -16,11 +18,11 @@ class MigrationService {
           .get();
       
       if (oldUsers.docs.isEmpty) {
-        print('ℹ️ No hay usuarios en la colección "users" para migrar');
+        logInfo('ℹ️ No hay usuarios en la colección "users" para migrar');
         return 0;
       }
 
-      print('📊 Encontrados ${oldUsers.docs.length} usuarios para migrar');
+      logInfo('📊 Encontrados ${oldUsers.docs.length} usuarios para migrar');
       
       // Copiar a 'usuarios' usando batch
       WriteBatch batch = _firestore.batch();
@@ -43,23 +45,23 @@ class MigrationService {
             );
             count++;
           } else {
-            print('⚠️ Usuario ${doc.id} ya existe en "usuarios", saltando...');
+            logInfo('⚠️ Usuario ${doc.id} ya existe en "usuarios", saltando...');
           }
         } catch (e) {
-          print('❌ Error al migrar usuario ${doc.id}: $e');
+          logInfo('❌ Error al migrar usuario ${doc.id}: $e');
         }
       }
       
       if (count > 0) {
         await batch.commit();
-        print('✅ Migración completada: $count usuarios migrados');
+        logInfo('✅ Migración completada: $count usuarios migrados');
       } else {
-        print('ℹ️ No hay nuevos usuarios para migrar');
+        logInfo('ℹ️ No hay nuevos usuarios para migrar');
       }
       
       return count;
     } catch (e) {
-      print('❌ Error en migración: $e');
+      logInfo('❌ Error en migración: $e');
       return 0;
     }
   }
@@ -67,18 +69,18 @@ class MigrationService {
   /// Migra todos los appointments de 'appointments' a 'citas'
   static Future<int> migrateAppointmentsToCitas() async {
     try {
-      print('🔄 Iniciando migración de appointments a citas...');
+      logInfo('🔄 Iniciando migración de appointments a citas...');
       
       QuerySnapshot oldAppointments = await _firestore
           .collection('appointments')
           .get();
       
       if (oldAppointments.docs.isEmpty) {
-        print('ℹ️ No hay citas en la colección "appointments" para migrar');
+        logInfo('ℹ️ No hay citas en la colección "appointments" para migrar');
         return 0;
       }
 
-      print('📊 Encontradas ${oldAppointments.docs.length} citas para migrar');
+      logInfo('📊 Encontradas ${oldAppointments.docs.length} citas para migrar');
       
       WriteBatch batch = _firestore.batch();
       int count = 0;
@@ -100,18 +102,18 @@ class MigrationService {
             count++;
           }
         } catch (e) {
-          print('❌ Error al migrar cita ${doc.id}: $e');
+          logInfo('❌ Error al migrar cita ${doc.id}: $e');
         }
       }
       
       if (count > 0) {
         await batch.commit();
-        print('✅ Migración completada: $count citas migradas');
+        logInfo('✅ Migración completada: $count citas migradas');
       }
       
       return count;
     } catch (e) {
-      print('❌ Error en migración: $e');
+      logInfo('❌ Error en migración: $e');
       return 0;
     }
   }
@@ -143,7 +145,7 @@ class MigrationService {
       return usersSnapshot.docs.isNotEmpty || 
              appointmentsSnapshot.docs.isNotEmpty;
     } catch (e) {
-      print('Error al verificar migración: $e');
+      logInfo('Error al verificar migración: $e');
       return false;
     }
   }
@@ -151,7 +153,7 @@ class MigrationService {
   /// Crea un respaldo de las colecciones nuevas antes de migrar
   static Future<void> createBackup() async {
     try {
-      print('💾 Creando respaldo...');
+      logInfo('💾 Creando respaldo...');
       
       // Respaldar usuarios
       QuerySnapshot usuarios = await _firestore
@@ -169,10 +171,10 @@ class MigrationService {
         }
         
         await batch.commit();
-        print('✅ Respaldo de usuarios completado');
+        logInfo('✅ Respaldo de usuarios completado');
       }
     } catch (e) {
-      print('❌ Error al crear respaldo: $e');
+      logInfo('❌ Error al crear respaldo: $e');
     }
   }
 
@@ -198,7 +200,7 @@ class MigrationService {
         'disponibilidad_medicos': availability.docs.length,
       };
     } catch (e) {
-      print('Error al obtener estadísticas: $e');
+      logInfo('Error al obtener estadísticas: $e');
       return {};
     }
   }

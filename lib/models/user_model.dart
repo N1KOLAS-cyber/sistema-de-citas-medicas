@@ -1,23 +1,23 @@
-/// USER MODEL - MODELO DE DATOS PARA USUARIOS DEL SISTEMA
-///
-/// Este archivo define la estructura de datos para usuarios del sistema de citas médicas.
-/// Maneja tanto pacientes como doctores con sus respectivos campos específicos.
-///
-/// FUNCIONALIDADES:
-/// - Representación de usuarios (pacientes y doctores)
-/// - Campos específicos para doctores (especialidad, licencia, calificación)
-/// - Campos específicos para pacientes (historial médico, edad)
-/// - Conversión entre Map y objeto (fromMap/toMap)
-/// - Método copyWith para actualizaciones inmutables
-///
-/// ESTRUCTURA:
-/// - Campos básicos: id, email, name, phone, profileImage
-/// - Campos de doctor: specialty, licenseNumber, rating, totalAppointments
-/// - Campos de paciente: medicalHistory, age, birthplace
-/// - Métodos de conversión y manipulación
-///
-/// VISUALIZACIÓN: Modelo de datos que se utiliza en toda la aplicación
-/// para representar usuarios en la base de datos y la interfaz.
+// USER MODEL - MODELO DE DATOS PARA USUARIOS DEL SISTEMA
+//
+// Este archivo define la estructura de datos para usuarios del sistema de citas médicas.
+// Maneja tanto pacientes como doctores con sus respectivos campos específicos.
+//
+// FUNCIONALIDADES:
+// - Representación de usuarios (pacientes y doctores)
+// - Campos específicos para doctores (especialidad, licencia, calificación)
+// - Campos específicos para pacientes (historial médico, edad)
+// - Conversión entre Map y objeto (fromMap/toMap)
+// - Método copyWith para actualizaciones inmutables
+//
+// ESTRUCTURA:
+// - Campos básicos: id, email, name, phone, profileImage
+// - Campos de doctor: specialty, licenseNumber, rating, totalAppointments
+// - Campos de paciente: medicalHistory, age, birthplace
+// - Métodos de conversión y manipulación
+//
+// VISUALIZACIÓN: Modelo de datos que se utiliza en toda la aplicación
+// para representar usuarios en la base de datos y la interfaz.
 
 class UserModel {
   final String id;
@@ -114,12 +114,11 @@ class UserModel {
     };
   }
 
-  /**
-   * Crea una copia del UserModel con campos actualizados
-   * Permite actualizaciones inmutables del objeto
-   * @param campos opcionales - Campos a actualizar
-   * @return UserModel - Nueva instancia con campos actualizados
-   */
+  ///
+  /// Crea una copia del UserModel con campos actualizados
+  /// Permite actualizaciones inmutables del objeto
+  /// @param campos opcionales - Campos a actualizar
+  /// @return UserModel - Nueva instancia con campos actualizados
   UserModel copyWith({
     String? id,
     String? email,
