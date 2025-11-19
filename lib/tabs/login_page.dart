@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
+import '../services/firestore_service.dart';
 import '../constants/app_constants.dart';
 import 'home_page.dart';
 import 'register_page.dart';
@@ -65,7 +66,13 @@ final FirebaseAuth _auth = FirebaseAuth.instance;
               createdAt: DateTime.now(),
               updatedAt: DateTime.now(),
               isDoctor: false,
+              role: 'Paciente',
             );
+            
+            // Guardar en Firestore
+            FirestoreService.createUser(basicUser).catchError((error) {
+              print('⚠️ Error al crear usuario en Firestore: $error');
+            });
             
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
@@ -83,6 +90,7 @@ final FirebaseAuth _auth = FirebaseAuth.instance;
             createdAt: DateTime.now(),
             updatedAt: DateTime.now(),
             isDoctor: false,
+            role: 'Paciente',
           );
           
           Navigator.of(context).pushReplacement(

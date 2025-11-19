@@ -27,6 +27,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_model.dart';
 import '../services/firestore_service.dart';
+import '../widgets/app_drawer.dart';
 import 'simple_login_page.dart';
 import 'edit_profile_page.dart';
 import 'privacy_terms_page.dart';
@@ -43,16 +44,19 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   late UserModel _currentUser;
+  String? _selectedRole; // Para el selector de rol
 
   @override
   void initState() {
     super.initState();
     _currentUser = widget.user;
+    _selectedRole = _currentUser.role ?? (_currentUser.isDoctor ? 'Médico' : 'Paciente');
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: AppDrawer(user: _currentUser),
       appBar: AppBar(
         title: const Text("Mi Perfil"),
         backgroundColor: Colors.indigo,
@@ -187,6 +191,7 @@ class _ProfilePageState extends State<ProfilePage> {
             _buildInfoRow(Icons.person, "Nombre", _currentUser.name),
             _buildInfoRow(Icons.email, "Email", _currentUser.email),
             _buildInfoRow(Icons.phone, "Teléfono", _currentUser.phone),
+            _buildRoleSelector(),
             if (_currentUser.isDoctor) ...[
               _buildInfoRow(Icons.medical_services, "Especialidad", _currentUser.specialty ?? 'No especificada'),
               _buildInfoRow(Icons.badge, "Licencia", _currentUser.licenseNumber ?? 'No disponible'),
@@ -350,6 +355,92 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /**
+   * Construye el selector de rol
+   * @return Widget - Selector de rol
+   */
+  Widget _buildRoleSelector() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Icon(Icons.person_outline, color: Colors.grey[600], size: 20),
+          const SizedBox(width: 12),
+          SizedBox(
+            width: 100,
+            child: Text(
+              "Rol",
+              style: const TextStyle(
+                fontWeight: FontWeight.w500,
+                color: Colors.grey,
+              ),
+            ),
+          ),
+          Expanded(
+            child: DropdownButtonFormField<String>(
+              value: _selectedRole,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+              items: const [
+                DropdownMenuItem(
+                  value: "Paciente",
+                  child: Text("Paciente"),
+                ),
+                DropdownMenuItem(
+                  value: "Médico",
+                  child: Text("Médico"),
+                ),
+              ],
+              onChanged: (value) async {
+                if (value != null && value != _currentUser.role) {
+                  setState(() {
+                    _selectedRole = value;
+                  });
+                  
+                  // Actualizar el rol en Firestore
+                  try {
+                    final updatedUser = _currentUser.copyWith(
+                      role: value,
+                      isDoctor: value == 'Médico',
+                    );
+                    await FirestoreService.updateUser(updatedUser);
+                    setState(() {
+                      _currentUser = updatedUser;
+                    });
+                    
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("Rol actualizado exitosamente"),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text("Error al actualizar rol: $e"),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                    // Revertir el cambio si falla
+                    setState(() {
+                      _selectedRole = _currentUser.role ?? (_currentUser.isDoctor ? 'Médico' : 'Paciente');
+                    });
+                  }
+                }
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

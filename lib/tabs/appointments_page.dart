@@ -27,6 +27,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/appointment_model.dart';
 import '../models/user_model.dart';
+import '../widgets/app_drawer.dart';
 import 'create_appointment_page.dart';
 import 'messages_page.dart';
 import 'doctor_appointments_page.dart';
@@ -118,6 +119,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
 
     // Si es paciente, mostrar la página de citas normal
     return Scaffold(
+      drawer: const AppDrawer(),
       appBar: AppBar(
         title: const Text("Mis Citas"),
         backgroundColor: Colors.indigo,

@@ -23,6 +23,7 @@
  */
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 import '../models/user_model.dart';
 import '../models/appointment_model.dart';
 import '../models/doctor_availability_model.dart';
@@ -369,5 +370,171 @@ class FirestoreService {
       return '$hour:$minute';
     }
     return '${formatTime(start)} - ${formatTime(end)}';
+  }
+
+  // ========== MÉTODOS DE STREAMS PARA DASHBOARD ==========
+
+  /// Stream del total de citas para un médico (filtra por doctorId)
+  static Stream<int> totalAppointmentsStream(String doctorId) {
+    return _firestore
+        .collection(_appointmentsCollection)
+        .where('doctorId', isEqualTo: doctorId)
+        .snapshots()
+        .map((snap) => snap.size);
+  }
+
+  /// Stream de citas pendientes/futuras (pending o confirmed y fecha > now)
+  static Stream<int> pendingAppointmentsStream(String doctorId) {
+    final now = DateTime.now();
+    return _firestore
+        .collection(_appointmentsCollection)
+        .where('doctorId', isEqualTo: doctorId)
+        .where('status', whereIn: ['pending', 'confirmed'])
+        .snapshots()
+        .map((snap) {
+      int count = 0;
+      for (var doc in snap.docs) {
+        final data = doc.data();
+        final appointmentDate = data['appointmentDate'];
+        
+        DateTime date;
+        if (appointmentDate is int) {
+          date = DateTime.fromMillisecondsSinceEpoch(appointmentDate);
+        } else if (appointmentDate is DateTime) {
+          date = appointmentDate;
+        } else {
+          try {
+            date = (appointmentDate as dynamic).toDate();
+          } catch (e) {
+            continue;
+          }
+        }
+        
+        if (date.isAfter(now.subtract(const Duration(seconds: 1)))) {
+          count++;
+        }
+      }
+      return count;
+    });
+  }
+
+  /// Stream de pacientes únicos que han tenido citas con el doctor
+  static Stream<int> totalUniquePatientsStream(String doctorId) {
+    return _firestore
+        .collection(_appointmentsCollection)
+        .where('doctorId', isEqualTo: doctorId)
+        .snapshots()
+        .asyncMap((snap) async {
+      final patientIds = <String>{};
+      for (final doc in snap.docs) {
+        final pid = doc.data()['patientId'] as String?;
+        if (pid != null) patientIds.add(pid);
+      }
+      return patientIds.length;
+    });
+  }
+
+  /// Stream de cantidad de citas por mes (últimos 6 meses) para gráfico de líneas
+  static Stream<Map<String, int>> appointmentsByMonthStream(String doctorId, {int months = 6}) {
+    return _firestore
+        .collection(_appointmentsCollection)
+        .where('doctorId', isEqualTo: doctorId)
+        .snapshots()
+        .map((snap) {
+      final now = DateTime.now();
+      final Map<String, int> map = {};
+      
+      // Inicializar meses
+      for (int i = months - 1; i >= 0; i--) {
+        final date = DateTime(now.year, now.month - i, 1);
+        final key = DateFormat('yyyy-MM').format(date);
+        map[key] = 0;
+      }
+      
+      // Contar citas por mes
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        final appointmentDate = data['appointmentDate'];
+        
+        DateTime dt;
+        if (appointmentDate is int) {
+          dt = DateTime.fromMillisecondsSinceEpoch(appointmentDate);
+        } else if (appointmentDate is DateTime) {
+          dt = appointmentDate;
+        } else {
+          try {
+            dt = (appointmentDate as dynamic).toDate();
+          } catch (e) {
+            continue;
+          }
+        }
+        
+        final key = DateFormat('yyyy-MM').format(DateTime(dt.year, dt.month, 1));
+        if (map.containsKey(key)) {
+          map[key] = (map[key] ?? 0) + 1;
+        }
+      }
+      
+      return map;
+    });
+  }
+
+  /// Stream de citas por día de la semana para gráfico de barras
+  static Stream<List<int>> appointmentsByWeekDayStream(String doctorId) {
+    return _firestore
+        .collection(_appointmentsCollection)
+        .where('doctorId', isEqualTo: doctorId)
+        .snapshots()
+        .map((snap) {
+      final counts = List<int>.filled(7, 0);
+      
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        final appointmentDate = data['appointmentDate'];
+        
+        DateTime dt;
+        if (appointmentDate is int) {
+          dt = DateTime.fromMillisecondsSinceEpoch(appointmentDate);
+        } else if (appointmentDate is DateTime) {
+          dt = appointmentDate;
+        } else {
+          try {
+            dt = (appointmentDate as dynamic).toDate();
+          } catch (e) {
+            continue;
+          }
+        }
+        
+        final idx = (dt.weekday - 1); // 0..6 (Monday=1 -> index 0)
+        counts[idx] = counts[idx] + 1;
+      }
+      
+      return counts;
+    });
+  }
+
+  /// Stream de distribución por estado (pendiente/confirmed/completed/cancelled)
+  static Stream<Map<String, int>> appointmentsByStatusStream(String doctorId) {
+    return _firestore
+        .collection(_appointmentsCollection)
+        .where('doctorId', isEqualTo: doctorId)
+        .snapshots()
+        .map((snap) {
+      final Map<String, int> map = {
+        'pending': 0,
+        'confirmed': 0,
+        'completed': 0,
+        'cancelled': 0,
+      };
+      
+      for (final doc in snap.docs) {
+        final status = doc.data()['status'] as String? ?? 'pending';
+        if (map.containsKey(status)) {
+          map[status] = (map[status] ?? 0) + 1;
+        }
+      }
+      
+      return map;
+    });
   }
 }

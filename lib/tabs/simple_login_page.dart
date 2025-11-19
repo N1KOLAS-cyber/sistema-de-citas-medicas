@@ -70,26 +70,34 @@ class _SimpleLoginPageState extends State<SimpleLoginPage> {
         
         try {
           user = await FirestoreService.getUser(userCredential.user!.uid);
+          print('✅ Usuario cargado de Firestore: ${user?.name}, role: ${user?.role}, isDoctor: ${user?.isDoctor}');
         } catch (e) {
           print('⚠️ Error al cargar datos de Firestore: $e');
         }
         
-        // Si no hay datos en Firestore, crear usuario básico
+          // Si no hay datos en Firestore, crear usuario básico
         if (user == null) {
           String userName = 'Usuario';
           bool isDoctor = false;
+          String? role;
           
           // Determinar el nombre y tipo de usuario basado en el email
-          if (emailController.text.contains('admin')) {
+          if (emailController.text.contains('admin') || emailController.text.contains('doctor')) {
             userName = 'Administrador';
+            role = 'Médico';
+            isDoctor = true;
           } else if (emailController.text.contains('test')) {
             userName = 'Usuario de Prueba';
+            role = 'Paciente';
           } else if (emailController.text.contains('anonimo')) {
             userName = 'Usuario Anónimo';
+            role = 'Paciente';
           } else {
             // Para usuarios registrados, usar el email como base para el nombre
             String emailPrefix = emailController.text.split('@')[0];
             userName = emailPrefix.isNotEmpty ? emailPrefix : 'Usuario';
+            // Por defecto es Paciente
+            role = 'Paciente';
           }
           
           user = UserModel(
@@ -100,12 +108,24 @@ class _SimpleLoginPageState extends State<SimpleLoginPage> {
             createdAt: DateTime.now(),
             updatedAt: DateTime.now(),
             isDoctor: isDoctor,
+            role: role,
           );
           
           // Intentar crear el documento en Firestore en segundo plano
           FirestoreService.createUser(user).catchError((error) {
             print('⚠️ Error al crear usuario en Firestore: $error');
           });
+          
+          print('✅ Usuario nuevo creado: ${user.name}, role: ${user.role}, isDoctor: ${user.isDoctor}');
+        } else {
+          // Usuario existe, verificar que tenga rol
+          if (user.role == null && user.isDoctor) {
+            // Actualizar rol si falta pero isDoctor es true
+            user = user.copyWith(role: 'Médico');
+            FirestoreService.updateUser(user).catchError((error) {
+              print('⚠️ Error al actualizar rol: $error');
+            });
+          }
         }
         
         Navigator.of(context).pop(); // Cerrar loading

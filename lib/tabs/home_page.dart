@@ -38,6 +38,7 @@ import 'doctor_availability_page.dart';
 import 'create_appointment_page.dart';
 import 'admin_tools_page.dart';
 import 'doctor_appointments_page.dart';
+import '../widgets/app_drawer.dart';
 
 class HomePage extends StatefulWidget {
   final UserModel user;
@@ -80,12 +81,30 @@ class _HomePageState extends State<HomePage> {
    */
   Widget _buildHomePage() {
     return Scaffold(
+      drawer: AppDrawer(user: widget.user),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Builder(
+                builder: (context) => Align(
+                  alignment: Alignment.centerLeft,
+                  child: IconButton(
+                    icon: const Icon(Icons.menu, color: Colors.indigo, size: 28),
+                    onPressed: () => Scaffold.of(context).openDrawer(),
+                    tooltip: 'Abrir menú lateral',
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.indigo.withOpacity(0.1),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
               // Header con saludo personalizado
               Container(
                 width: double.infinity,
@@ -212,8 +231,10 @@ class _HomePageState extends State<HomePage> {
                 const SizedBox(height: 12),
               ],
 
-              if (widget.user.isDoctor) ...[
-                // Acciones para doctores
+              // Verificar rol del usuario (prioridad: role > isDoctor)
+              if (widget.user.role == 'Médico' || 
+                  (widget.user.role == null && widget.user.isDoctor)) ...[
+                // Acciones para médicos
                 _buildActionCard(
                   "Gestionar Citas",
                   "Revisa y aprueba citas pendientes",
@@ -255,7 +276,7 @@ class _HomePageState extends State<HomePage> {
               ] else ...[
                 // Acciones para pacientes
                 _buildActionCard(
-                  "Agendar Cita",
+                  "Agregar Cita",
                   "Reserva una consulta con un especialista",
                   Icons.add_circle,
                   Colors.indigo,
@@ -798,6 +819,7 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: AppDrawer(user: widget.user),
       body: _pages[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,

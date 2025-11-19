@@ -1,25 +1,23 @@
-/**
- * USER MODEL - MODELO DE DATOS PARA USUARIOS DEL SISTEMA
- * 
- * Este archivo define la estructura de datos para usuarios del sistema de citas médicas.
- * Maneja tanto pacientes como doctores con sus respectivos campos específicos.
- * 
- * FUNCIONALIDADES:
- * - Representación de usuarios (pacientes y doctores)
- * - Campos específicos para doctores (especialidad, licencia, calificación)
- * - Campos específicos para pacientes (historial médico, edad)
- * - Conversión entre Map y objeto (fromMap/toMap)
- * - Método copyWith para actualizaciones inmutables
- * 
- * ESTRUCTURA:
- * - Campos básicos: id, email, name, phone, profileImage
- * - Campos de doctor: specialty, licenseNumber, rating, totalAppointments
- * - Campos de paciente: medicalHistory, age, birthplace
- * - Métodos de conversión y manipulación
- * 
- * VISUALIZACIÓN: Modelo de datos que se utiliza en toda la aplicación
- * para representar usuarios en la base de datos y la interfaz.
- */
+/// USER MODEL - MODELO DE DATOS PARA USUARIOS DEL SISTEMA
+///
+/// Este archivo define la estructura de datos para usuarios del sistema de citas médicas.
+/// Maneja tanto pacientes como doctores con sus respectivos campos específicos.
+///
+/// FUNCIONALIDADES:
+/// - Representación de usuarios (pacientes y doctores)
+/// - Campos específicos para doctores (especialidad, licencia, calificación)
+/// - Campos específicos para pacientes (historial médico, edad)
+/// - Conversión entre Map y objeto (fromMap/toMap)
+/// - Método copyWith para actualizaciones inmutables
+///
+/// ESTRUCTURA:
+/// - Campos básicos: id, email, name, phone, profileImage
+/// - Campos de doctor: specialty, licenseNumber, rating, totalAppointments
+/// - Campos de paciente: medicalHistory, age, birthplace
+/// - Métodos de conversión y manipulación
+///
+/// VISUALIZACIÓN: Modelo de datos que se utiliza en toda la aplicación
+/// para representar usuarios en la base de datos y la interfaz.
 
 class UserModel {
   final String id;
@@ -37,6 +35,7 @@ class UserModel {
   final String? medicalHistory; // Historial médico / enfermedades (para pacientes)
   final int? age; // Edad del usuario
   final String? birthplace; // Lugar de nacimiento
+  final String? role; // Rol del usuario: "Paciente" o "Médico"
 
   UserModel({
     required this.id,
@@ -54,14 +53,11 @@ class UserModel {
     this.medicalHistory,
     this.age,
     this.birthplace,
+    this.role,
   });
 
-  /**
-   * Constructor factory para crear UserModel desde un Map
-   * Maneja conversión de fechas desde diferentes formatos (Timestamp, int, DateTime)
-   * @param map - Mapa con los datos del usuario
-   * @return UserModel - Instancia del usuario
-   */
+  /// Constructor factory para crear UserModel desde un Map.
+  /// Maneja conversión de fechas desde diferentes formatos (Timestamp, int, DateTime).
   factory UserModel.fromMap(Map<String, dynamic> map) {
     // Helper para convertir cualquier formato de fecha a DateTime
     DateTime parseDate(dynamic value) {
@@ -92,13 +88,11 @@ class UserModel {
       medicalHistory: map['medicalHistory'],
       age: map['age'],
       birthplace: map['birthplace'],
+      role: map['role'],
     );
   }
 
-  /**
-   * Convierte el UserModel a un Map para almacenamiento en Firestore
-   * @return Map<String, dynamic> - Mapa con los datos del usuario
-   */
+  /// Convierte el UserModel a un Map para almacenamiento en Firestore.
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -116,6 +110,7 @@ class UserModel {
       'medicalHistory': medicalHistory,
       'age': age,
       'birthplace': birthplace,
+      'role': role,
     };
   }
 
@@ -141,6 +136,7 @@ class UserModel {
     String? medicalHistory,
     int? age,
     String? birthplace,
+    String? role,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -158,6 +154,7 @@ class UserModel {
       medicalHistory: medicalHistory ?? this.medicalHistory,
       age: age ?? this.age,
       birthplace: birthplace ?? this.birthplace,
+      role: role ?? this.role,
     );
   }
 }

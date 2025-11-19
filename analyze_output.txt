@@ -1,0 +1,2 @@
+Analyzing sistema_citas_medicas...                              ¿Desea terminar el trabajo por lotes (S/N)? ¿Desea terminar el trabajo por lotes (S/N)? 
+^CEl sistema no puede abrir el dispositivo o archivo especificado.

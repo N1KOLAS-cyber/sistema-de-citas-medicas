@@ -65,6 +65,7 @@ class _RegisterPageState extends State<RegisterPage> {
         Navigator.of(context).pop(); // Cerrar loading INMEDIATAMENTE
         
         // Crear documento de usuario en Firestore
+        String role = _isDoctor ? 'Médico' : 'Paciente';
         UserModel newUser = UserModel(
           id: userCredential.user!.uid,
           email: _emailController.text.trim(),
@@ -77,6 +78,7 @@ class _RegisterPageState extends State<RegisterPage> {
           licenseNumber: _isDoctor ? _licenseController.text.trim() : null,
           rating: _isDoctor ? 0.0 : null,
           totalAppointments: _isDoctor ? 0 : null,
+          role: role,
         );
 
         // Usar FirestoreService para guardar en la colección 'usuarios'

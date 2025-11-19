@@ -24,6 +24,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   final TextEditingController lugarNacimientoController = TextEditingController();
   final TextEditingController especialidadController = TextEditingController();
   final TextEditingController licenciaController = TextEditingController();
+  String? _selectedRole; // Para el selector de rol
 
   bool _loading = false;
 
@@ -51,6 +52,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
         enfermedadesController.text = data['medicalHistory'] ?? '';
         edadController.text = data['age']?.toString() ?? '';
         lugarNacimientoController.text = data['birthplace'] ?? '';
+        
+        // Cargar rol
+        _selectedRole = data['role'] ?? (data['isDoctor'] == true ? 'Médico' : 'Paciente');
         
         // Si es doctor, cargar campos adicionales
         if (data['isDoctor'] == true) {
@@ -90,6 +94,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
     setState(() => _loading = true);
 
     try {
+      // Validar que se haya seleccionado un rol
+      if (_selectedRole == null || _selectedRole!.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Por favor selecciona un rol")),
+        );
+        return;
+      }
+
       Map<String, dynamic> updateData = {
         'name': nombreController.text.trim(),
         'phone': telefonoController.text.trim(),
@@ -101,10 +113,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
         'email': user.email,
         'id': user.uid,
         'updatedAt': DateTime.now().millisecondsSinceEpoch,
+        'role': _selectedRole,
+        'isDoctor': _selectedRole == 'Médico',
       };
 
       // Si es doctor, actualizar campos adicionales
-      if (widget.user.isDoctor) {
+      if (_selectedRole == 'Médico') {
         updateData['specialty'] = especialidadController.text.trim();
         updateData['licenseNumber'] = licenciaController.text.trim();
       }
@@ -264,8 +278,35 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   ),
                   const SizedBox(height: 16),
 
+                  // Selector de rol
+                  DropdownButtonFormField<String>(
+                    value: _selectedRole,
+                    decoration: const InputDecoration(
+                      labelText: 'Rol',
+                      prefixIcon: Icon(Icons.person_outline),
+                      border: OutlineInputBorder(),
+                      helperText: 'Selecciona tu rol en el sistema',
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: "Paciente",
+                        child: Text("Paciente"),
+                      ),
+                      DropdownMenuItem(
+                        value: "Médico",
+                        child: Text("Médico"),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedRole = value;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
                   // Campo de enfermedades/historial médico (solo para pacientes)
-                  if (!widget.user.isDoctor) ...[
+                  if (_selectedRole != 'Médico') ...[
                     TextField(
                       controller: enfermedadesController,
                       decoration: const InputDecoration(
@@ -280,7 +321,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   ],
 
                   // Campos adicionales para doctores
-                  if (widget.user.isDoctor) ...[
+                  if (_selectedRole == 'Médico') ...[
                     const Text(
                       "Información Profesional",
                       style: TextStyle(

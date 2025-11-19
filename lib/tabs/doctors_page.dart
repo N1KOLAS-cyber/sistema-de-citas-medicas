@@ -27,6 +27,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_model.dart';
 import '../models/specialty_model.dart';
+import '../widgets/app_drawer.dart';
 
 class DoctorsPage extends StatefulWidget {
   const DoctorsPage({super.key});
@@ -50,6 +51,7 @@ class _DoctorsPageState extends State<DoctorsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: const AppDrawer(),
       appBar: AppBar(
         title: const Text("Doctores"),
         backgroundColor: Colors.indigo,
