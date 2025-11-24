@@ -15,6 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_model.dart';
 import '../services/firestore_service.dart';
+import '../services/auth_service.dart';
 import '../tabs/profile_page.dart';
 import '../tabs/appointments_page.dart';
 import '../tabs/doctors_page.dart';
@@ -23,7 +24,7 @@ import '../tabs/doctor_appointments_page.dart';
 import '../tabs/doctor_availability_page.dart';
 import '../tabs/create_appointment_page.dart';
 import '../tabs/admin_tools_page.dart';
-import '../tabs/simple_login_page.dart';
+import '../tabs/login_page.dart';
 import '../tabs/home_page.dart';
 import '../utils/logger.dart';
 
@@ -189,12 +190,17 @@ class AppDrawer extends StatelessWidget {
                 onTap: () {
                   logInfo('🔍 DEBUG - Navegando al Dashboard para: ${currentUser.name}');
                   Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => DashboardPage(user: currentUser),
-                    ),
-                  );
+                  // Esperar a que se cierre el drawer antes de navegar
+                  Future.delayed(const Duration(milliseconds: 250), () {
+                    if (context.mounted) {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => DashboardPage(user: currentUser),
+                        ),
+                      );
+                    }
+                  });
                 },
               ),
             ),
@@ -378,12 +384,30 @@ class AppDrawer extends StatelessWidget {
               );
 
               if (shouldLogout == true) {
-                await FirebaseAuth.instance.signOut();
-                if (context.mounted) {
-                  Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (context) => const SimpleLoginPage()),
-                    (route) => false,
-                  );
+                try {
+                  // Cerrar sesión en Firebase Auth
+                  await FirebaseAuth.instance.signOut();
+                  // Limpiar datos de sesión guardados
+                  await AuthService.clearSession();
+                  
+                  // Pequeño delay para asegurar que Firebase Auth actualice el estado
+                  await Future.delayed(const Duration(milliseconds: 100));
+                  
+                  if (context.mounted) {
+                    // Navegar al login eliminando todas las rutas anteriores
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (context) => const LoginPage()),
+                      (route) => false,
+                    );
+                  }
+                } catch (e) {
+                  // Si hay error, aún así navegar al login
+                  if (context.mounted) {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (context) => const LoginPage()),
+                      (route) => false,
+                    );
+                  }
                 }
               }
             },

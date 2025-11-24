@@ -7,7 +7,7 @@
 // - Inicialización de Firebase
 // - Creación automática del usuario administrador
 // - Configuración del tema de la aplicación
-// - Definición de la página de inicio (SimpleLoginPage)
+// - Definición de la página de inicio (LoginPage)
 //
 // ESTRUCTURA:
 // - main(): Función principal que inicializa la app
@@ -18,10 +18,12 @@
 // intuitiva y diseño moderno.
 
 import 'package:flutter/material.dart';
-import 'tabs/simple_login_page.dart';
+import 'tabs/login_page.dart';
+import 'tabs/home_page.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'services/admin_service.dart';
+import 'services/auth_service.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 /// Función principal de la aplicación.
@@ -92,7 +94,66 @@ class MyApp extends StatelessWidget {
           type: BottomNavigationBarType.fixed,
         ),
       ),
-      home: const SimpleLoginPage(),
+      home: const AuthWrapper(),
     );
+  }
+}
+
+/// Widget que verifica si hay una sesión activa y navega a la página correspondiente
+class AuthWrapper extends StatefulWidget {
+  const AuthWrapper({super.key});
+
+  @override
+  State<AuthWrapper> createState() => _AuthWrapperState();
+}
+
+class _AuthWrapperState extends State<AuthWrapper> {
+  bool _isLoading = true;
+  Widget? _initialPage;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAuthState();
+  }
+
+  /// Verifica el estado de autenticación al iniciar la app
+  Future<void> _checkAuthState() async {
+    try {
+      // Verificar si hay un usuario autenticado
+      final user = await AuthService.getCurrentUser();
+      
+      if (user != null) {
+        // Hay una sesión activa, navegar al HomePage
+        setState(() {
+          _initialPage = HomePage(user: user);
+          _isLoading = false;
+        });
+      } else {
+        // No hay sesión activa, mostrar LoginPage
+        setState(() {
+          _initialPage = const LoginPage();
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      // En caso de error, mostrar LoginPage
+      setState(() {
+        _initialPage = const LoginPage();
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    return _initialPage ?? const LoginPage();
   }
 }

@@ -52,6 +52,10 @@ dependencies:
   
   # HTTP & Network
   http: ^1.2.2
+  
+  # Local Storage
+  shared_preferences: ^2.2.2
+  shared_preferences_web: ^2.4.3
 
 dev_dependencies:
   flutter_test:
@@ -78,6 +82,8 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/images/
+    - assets/fondo_de_login.jpg
+    - assets/login-bg.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

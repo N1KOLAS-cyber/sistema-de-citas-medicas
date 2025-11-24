@@ -26,8 +26,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_model.dart';
 import '../services/firestore_service.dart';
+import '../services/auth_service.dart';
 import '../widgets/app_drawer.dart';
-import 'simple_login_page.dart';
+import 'login_page.dart';
 import 'edit_profile_page.dart';
 import 'privacy_terms_page.dart';
 
@@ -43,13 +44,11 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   late UserModel _currentUser;
-  String? _selectedRole; // Para el selector de rol
 
   @override
   void initState() {
     super.initState();
     _currentUser = widget.user;
-    _selectedRole = _currentUser.role ?? (_currentUser.isDoctor ? 'Médico' : 'Paciente');
   }
 
   @override
@@ -355,86 +354,11 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   ///
-  /// Construye el selector de rol
-  /// @return Widget - Selector de rol
+  /// Construye el campo de rol (solo lectura)
+  /// @return Widget - Campo de rol de solo lectura
   Widget _buildRoleSelector() {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        children: [
-          Icon(Icons.person_outline, color: Colors.grey[600], size: 20),
-          const SizedBox(width: 12),
-          SizedBox(
-            width: 100,
-            child: Text(
-              "Rol",
-              style: const TextStyle(
-                fontWeight: FontWeight.w500,
-                color: Colors.grey,
-              ),
-            ),
-          ),
-          Expanded(
-            child: DropdownButtonFormField<String>(
-              initialValue: _selectedRole,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              ),
-              items: const [
-                DropdownMenuItem(
-                  value: "Paciente",
-                  child: Text("Paciente"),
-                ),
-                DropdownMenuItem(
-                  value: "Médico",
-                  child: Text("Médico"),
-                ),
-              ],
-              onChanged: (value) async {
-                if (value != null && value != _currentUser.role) {
-                  setState(() {
-                    _selectedRole = value;
-                  });
-                  
-                  // Actualizar el rol en Firestore
-                  try {
-                    final updatedUser = _currentUser.copyWith(
-                      role: value,
-                      isDoctor: value == 'Médico',
-                    );
-                    await FirestoreService.updateUser(updatedUser);
-                    if (!mounted) return;
-                    setState(() {
-                      _currentUser = updatedUser;
-                    });
-                    
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text("Rol actualizado exitosamente"),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                  } catch (e) {
-                    if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text("Error al actualizar rol: $e"),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                    // Revertir el cambio si falla
-                    setState(() {
-                      _selectedRole = _currentUser.role ?? (_currentUser.isDoctor ? 'Médico' : 'Paciente');
-                    });
-                  }
-                }
-              },
-            ),
-          ),
-        ],
-      ),
-    );
+    final String roleDisplay = _currentUser.role ?? (_currentUser.isDoctor ? 'Médico' : 'Paciente');
+    return _buildInfoRow(Icons.person_outline, "Rol", roleDisplay);
   }
 
   ///
@@ -613,12 +537,35 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           TextButton(
             onPressed: () async {
-              await _auth.signOut();
-              if (!context.mounted) return;
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (context) => const SimpleLoginPage()),
-                (route) => false,
-              );
+              // Cerrar el diálogo primero
+              if (context.mounted) {
+                Navigator.of(context).pop();
+              }
+              
+              try {
+                // Cerrar sesión en Firebase Auth
+                await _auth.signOut();
+                // Limpiar datos de sesión guardados
+                await AuthService.clearSession();
+                
+                // Pequeño delay para asegurar que Firebase Auth actualice el estado
+                await Future.delayed(const Duration(milliseconds: 100));
+                
+                if (!context.mounted) return;
+                
+                // Navegar al login eliminando todas las rutas anteriores
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (context) => const LoginPage()),
+                  (route) => false,
+                );
+              } catch (e) {
+                // Si hay error, aún así navegar al login
+                if (!context.mounted) return;
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (context) => const LoginPage()),
+                  (route) => false,
+                );
+              }
             },
             child: const Text("Cerrar Sesión"),
           ),

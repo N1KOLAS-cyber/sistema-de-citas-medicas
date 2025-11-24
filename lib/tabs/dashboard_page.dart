@@ -16,6 +16,26 @@ class DashboardPage extends StatefulWidget {
 
 class _DashboardPageState extends State<DashboardPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  int? touchedIndex;
+  
+  // Mapeo de estados a índices para la interacción con la leyenda
+  Map<String, int> _getStatusIndexMap(int pendientes, int enRevision, int enCurso, int finalizadas) {
+    final map = <String, int>{};
+    int index = 0;
+    if (pendientes > 0) {
+      map['pendientes'] = index++;
+    }
+    if (enRevision > 0) {
+      map['enRevision'] = index++;
+    }
+    if (enCurso > 0) {
+      map['enCurso'] = index++;
+    }
+    if (finalizadas > 0) {
+      map['finalizadas'] = index++;
+    }
+    return map;
+  }
 
   Stream<QuerySnapshot<Map<String, dynamic>>> _appointmentsStream() {
     return _firestore
@@ -39,11 +59,19 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6FB),
+      backgroundColor: Colors.grey[50],
       drawer: AppDrawer(user: widget.user),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1E4EB7),
-        title: const Text('Dashboard del Médico'),
+        backgroundColor: Colors.white,
+        elevation: 1,
+        title: const Text(
+          'Dashboard del Médico',
+          style: TextStyle(
+            color: Colors.black87,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        iconTheme: const IconThemeData(color: Colors.black87),
         leading: Builder(
           builder: (context) => IconButton(
             icon: const Icon(Icons.menu),
@@ -54,64 +82,71 @@ class _DashboardPageState extends State<DashboardPage> {
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: _appointmentsStream(),
         builder: (context, snapshot) {
+          // Manejo de errores
+          if (snapshot.hasError) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Error al cargar datos',
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: Colors.grey[800],
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Por favor, intenta nuevamente',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {});
+                    },
+                    child: const Text('Reintentar'),
+                  ),
+                ],
+              ),
+            );
+          }
+
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
           }
 
           final citas = snapshot.data?.docs ?? [];
-          final totalCitas = citas.length;
           final now = DateTime.now();
-          final today = DateTime(now.year, now.month, now.day);
+          final startOfMonth = DateTime(now.year, now.month, 1);
 
-          DateTime startMonths(int months) =>
-              DateTime(now.year, now.month - months, now.day);
-
-          String extractPatientId(Map<String, dynamic> data, String docId) {
-            return (data['patientId'] ??
-                    data['nombreUsuario'] ??
-                    data['patientEmail'] ??
-                    docId)
-                .toString();
-          }
-
-          int countAppointmentsWithin(int months, {Set<String>? statuses}) {
-            final cutoff = startMonths(months);
-            return citas.where((doc) {
-              final fecha =
-                  _parseDate(doc.data()['appointmentDate'] ?? doc.data()['fechaHora']);
-              if (fecha == null || fecha.isBefore(cutoff)) return false;
-              if (statuses != null && statuses.isNotEmpty) {
-                final status = (doc.data()['status'] ?? '').toString().toLowerCase();
-                if (!statuses.contains(status)) return false;
-              }
-              return true;
-            }).length;
-          }
-
-          int countUniquePatientsWithin(int months) {
-            final patients = <String>{};
-            final cutoff = startMonths(months);
-            for (final doc in citas) {
-              final fecha =
-                  _parseDate(doc.data()['appointmentDate'] ?? doc.data()['fechaHora']);
-              if (fecha == null || fecha.isBefore(cutoff)) continue;
-              patients.add(extractPatientId(doc.data(), doc.id));
+          // Calcular estadísticas del mes actual
+          int citasDelMes = 0;
+          Set<String> pacientesUnicos = {};
+          
+          for (var doc in citas) {
+            final data = doc.data();
+            final fecha = _parseDate(data['appointmentDate'] ?? data['fechaHora']);
+            final patientId = data['patientId'] ?? data['patientName'];
+            
+            if (fecha != null && fecha.isAfter(startOfMonth.subtract(const Duration(days: 1)))) {
+              citasDelMes++;
             }
-            return patients.length;
-          }
-
-          final Map<String, DateTime> firstAppointmentByPatient = {};
-          for (final doc in citas) {
-            final fecha =
-                _parseDate(doc.data()['appointmentDate'] ?? doc.data()['fechaHora']);
-            if (fecha == null) continue;
-            final id = extractPatientId(doc.data(), doc.id);
-            final current = firstAppointmentByPatient[id];
-            if (current == null || fecha.isBefore(current)) {
-              firstAppointmentByPatient[id] = fecha;
+            
+            if (patientId != null) {
+              pacientesUnicos.add(patientId.toString());
             }
           }
 
+          // Contar citas por estado
           int countByStatus(Set<String> statuses) {
             return citas.where((doc) {
               final status = (doc.data()['status'] ?? '').toString().toLowerCase();
@@ -119,491 +154,1211 @@ class _DashboardPageState extends State<DashboardPage> {
             }).length;
           }
 
-          final citasHoy = citas.where((doc) {
-            final fecha =
-                _parseDate(doc.data()['appointmentDate'] ?? doc.data()['fechaHora']);
-            if (fecha == null) return false;
-            final truncated = DateTime(fecha.year, fecha.month, fecha.day);
-            return truncated == today;
-          }).length;
+          final pendientesCount = countByStatus({'pending', 'confirmada', 'confirmed', 'pendiente'});
+          final enRevisionCount = countByStatus({'en revisión', 'review'});
+          final enCursoCount = countByStatus({'en curso', 'in progress'});
+          final finalizadasCount = countByStatus({'completed', 'completada', 'finalizada'});
+          final totalCitas = citas.length;
+          final totalPacientes = pacientesUnicos.length;
 
-          final totalPacientes24m = countUniquePatientsWithin(24);
-          final totalCitas3m = countAppointmentsWithin(3);
-          final totalCitas6m = countAppointmentsWithin(6);
-          final completadas3m =
-              countAppointmentsWithin(3, statuses: {'completed'});
-          final completadas6m =
-              countAppointmentsWithin(6, statuses: {'completed'});
-          final pendientesCount =
-              countByStatus({'pending', 'confirmada', 'confirmed'});
-          final canceladasCount =
-              countByStatus({'cancelled', 'cancelada', 'canceled'});
+          final porcentajeFinalizadas = totalCitas > 0 
+              ? (finalizadasCount / totalCitas * 100) 
+              : 0.0;
 
-          const int objetivoCitas = 32;
-          const int objetivoPacientes = 32;
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Tarjetas superiores con estadísticas principales
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    if (constraints.maxWidth > 600) {
+                      return Row(
+                        children: [
+                          Expanded(
+                            child: _buildStatCard(
+                              'Citas del Mes',
+                              citasDelMes.toString(),
+                              Icons.calendar_today,
+                              Colors.blue,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: _buildStatCard(
+                              'Total de Pacientes',
+                              totalPacientes.toString(),
+                              Icons.people,
+                              Colors.green,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: _buildStatCard(
+                              'Total de Citas',
+                              totalCitas.toString(),
+                              Icons.event_note,
+                              Colors.orange,
+                            ),
+                          ),
+                        ],
+                      );
+                    } else {
+                      return Column(
+                        children: [
+                          _buildStatCard(
+                            'Citas del Mes',
+                            citasDelMes.toString(),
+                            Icons.calendar_today,
+                            Colors.blue,
+                          ),
+                          const SizedBox(height: 16),
+                          _buildStatCard(
+                            'Total de Pacientes',
+                            totalPacientes.toString(),
+                            Icons.people,
+                            Colors.green,
+                          ),
+                          const SizedBox(height: 16),
+                          _buildStatCard(
+                            'Total de Citas',
+                            totalCitas.toString(),
+                            Icons.event_note,
+                            Colors.orange,
+                          ),
+                        ],
+                      );
+                    }
+                  },
+                ),
+                const SizedBox(height: 24),
 
-          double safeRatio(int value, int base) => base <= 0 ? 0 : value / base;
+                // Layout principal: Resumen de estado y Actividad reciente
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isWide = constraints.maxWidth > 900;
+                    
+                    if (isWide) {
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Resumen de estado con gráfico de dona
+                          Expanded(
+                            flex: 2,
+                            child: _buildStatusSummaryCard(
+                              totalCitas,
+                              pendientesCount,
+                              enRevisionCount,
+                              enCursoCount,
+                              finalizadasCount,
+                              porcentajeFinalizadas,
+                            ),
+                          ),
+                          const SizedBox(width: 20),
+                          // Actividad reciente
+                          Expanded(
+                            flex: 1,
+                            child: _buildRecentActivityCard(citas),
+                          ),
+                        ],
+                      );
+                    } else {
+                      return Column(
+                        children: [
+                          _buildStatusSummaryCard(
+                            totalCitas,
+                            pendientesCount,
+                            enRevisionCount,
+                            enCursoCount,
+                            finalizadasCount,
+                            porcentajeFinalizadas,
+                          ),
+                          const SizedBox(height: 20),
+                          _buildRecentActivityCard(citas),
+                        ],
+                      );
+                    }
+                  },
+                ),
+                const SizedBox(height: 24),
 
-          final ratioActividad3 = safeRatio(completadas3m, totalCitas3m);
-          final ratioActividad6 = safeRatio(completadas6m, totalCitas6m);
-
-          final last90Days = startMonths(3);
-          final dailyCounts = <DateTime, int>{};
-          for (final doc in citas) {
-            final fecha =
-                _parseDate(doc.data()['appointmentDate'] ?? doc.data()['fechaHora']);
-            if (fecha == null || fecha.isBefore(last90Days)) continue;
-            final dayKey = DateTime(fecha.year, fecha.month, fecha.day);
-            dailyCounts[dayKey] = (dailyCounts[dayKey] ?? 0) + 1;
-          }
-
-          final lineDates = List.generate(
-            30,
-            (i) => today.subtract(Duration(days: 29 - i)),
+                // Nuevas gráficas: Citas por mes y Completadas vs Canceladas
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isWide = constraints.maxWidth > 900;
+                    
+                    if (isWide) {
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Gráfica de citas por mes
+                          Expanded(
+                            child: _buildMonthlyAppointmentsCard(citas),
+                          ),
+                          const SizedBox(width: 20),
+                          // Gráfica de citas completadas vs canceladas
+                          Expanded(
+                            child: _buildCompletionStatusCard(citas),
+                          ),
+                        ],
+                      );
+                    } else {
+                      return Column(
+                        children: [
+                          _buildMonthlyAppointmentsCard(citas),
+                          const SizedBox(height: 20),
+                          _buildCompletionStatusCard(citas),
+                        ],
+                      );
+                    }
+                  },
+                ),
+              ],
+            ),
           );
-          final lineValues = lineDates.map((d) => dailyCounts[d] ?? 0).toList();
+        },
+      ),
+    );
+  }
 
-          return LayoutBuilder(
-            builder: (context, constraints) {
-              final maxWidth = constraints.maxWidth;
-              final isCompact = maxWidth < 640;
-              final spacing = 16.0;
-              final columns = maxWidth >= 1400
-                  ? 4
-                  : maxWidth >= 1100
-                      ? 3
-                      : maxWidth >= 720
-                          ? 2
-                          : 1;
-              final cardWidth =
-                  columns == 1 ? maxWidth : (maxWidth - spacing * (columns - 1)) / columns;
-
-              double clampWidth(double value, double min, double max) {
-                if (value < min) return min;
-                if (value > max) return max;
-                return value;
-              }
-
-              final donutWidth = columns == 1
-                  ? clampWidth(maxWidth * 0.6, 160, 200)
-                  : clampWidth(cardWidth, 150, 180);
-              final donutConfigs = [
-                _DonutConfig(
-                  title: 'Actividad últimos 3 meses',
-                  percentage: ratioActividad3 * 100,
-                  value: completadas3m,
-                  base: totalCitas3m,
-                  detail:
-                      '$completadas3m completadas / $totalCitas3m registradas (meta $objetivoCitas)',
+  // Widget para tarjetas de estadísticas principales
+  Widget _buildStatCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                _DonutConfig(
-                  title: 'Actividad últimos 6 meses',
-                  percentage: ratioActividad6 * 100,
-                  value: completadas6m,
-                  base: totalCitas6m,
-                  detail:
-                      '$completadas6m completadas / $totalCitas6m registradas (meta $objetivoCitas)',
-                ),
-                _DonutConfig(
-                  title: 'Citas pendientes',
-                  percentage: safeRatio(pendientesCount, totalCitas) * 100,
-                  value: pendientesCount,
-                  base: totalCitas,
-                  detail: '$pendientesCount pendientes / $totalCitas totales',
-                ),
-                _DonutConfig(
-                  title: 'Citas canceladas',
-                  percentage: safeRatio(canceladasCount, totalCitas) * 100,
-                  value: canceladasCount,
-                  base: totalCitas,
-                  detail: '$canceladasCount canceladas / $totalCitas totales',
-                ),
-              ];
+                child: Icon(icon, color: color, size: 24),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            value,
+            style: TextStyle(
+              color: Colors.grey[800],
+              fontSize: 32,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontSize: 14,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-              final horizontalPadding = isCompact ? 12.0 : 24.0;
+  // Función helper para construir las secciones del gráfico
+  List<PieChartSectionData> _buildPieChartSections(
+    int totalCitas,
+    int pendientes,
+    int enRevision,
+    int enCurso,
+    int finalizadas,
+  ) {
+    final List<PieChartSectionData> sections = [];
 
-              return SingleChildScrollView(
-                padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 24),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 1400),
+    int currentIndex = 0;
+    
+    if (pendientes > 0) {
+      final isHighlighted = touchedIndex == currentIndex;
+      sections.add(
+        PieChartSectionData(
+          value: pendientes.toDouble(),
+          color: Colors.blue,
+          title: '',
+          radius: isHighlighted ? 50 : 45,
+        ),
+      );
+      currentIndex++;
+    }
+
+    if (enRevision > 0) {
+      final isHighlighted = touchedIndex == currentIndex;
+      sections.add(
+        PieChartSectionData(
+          value: enRevision.toDouble(),
+          color: Colors.purple,
+          title: '',
+          radius: isHighlighted ? 50 : 45,
+        ),
+      );
+      currentIndex++;
+    }
+
+    if (enCurso > 0) {
+      final isHighlighted = touchedIndex == currentIndex;
+      sections.add(
+        PieChartSectionData(
+          value: enCurso.toDouble(),
+          color: Colors.green,
+          title: '',
+          radius: isHighlighted ? 50 : 45,
+        ),
+      );
+      currentIndex++;
+    }
+
+    if (finalizadas > 0) {
+      final isHighlighted = touchedIndex == currentIndex;
+      sections.add(
+        PieChartSectionData(
+          value: finalizadas.toDouble(),
+          color: Colors.orange,
+          title: '',
+          radius: isHighlighted ? 50 : 45,
+        ),
+      );
+      currentIndex++;
+    }
+
+    if (totalCitas == 0) {
+      sections.add(
+        PieChartSectionData(
+          value: 1,
+          color: Colors.grey[300]!,
+          title: 'Sin datos',
+          radius: 45,
+          titleStyle: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: Colors.grey,
+          ),
+        ),
+      );
+    }
+
+    return sections;
+  }
+
+  // Widget para el resumen de estado con gráfico de dona
+  Widget _buildStatusSummaryCard(
+    int totalCitas,
+    int pendientes,
+    int enRevision,
+    int enCurso,
+    int finalizadas,
+    double porcentajeFinalizadas,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
+          const Text(
+            'Resumen de estado',
+            style: TextStyle(
+              color: Colors.black87,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Obtén una instantánea del estado de tus citas y pacientes.',
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(height: 24),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isCompact = constraints.maxWidth < 600;
+              
+              return isCompact
+                  ? Column(
                             children: [
+                        // Gráfica de dona
                               SizedBox(
-                                width: isCompact ? 220 : 260,
-                                child: _buildMetricColumn(
-                                  title: 'Citas totales',
-                                  value: totalCitas,
-                                  comparison: 'Hoy: $citasHoy',
-                                  percentage: 100,
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              SizedBox(
-                                width: isCompact ? 220 : 260,
-                                child: _buildMetricColumn(
-                                  title: 'Pacientes únicos',
-                                  value: totalPacientes24m,
-                                  comparison: 'Pendientes: $pendientesCount',
-                                  percentage: safeRatio(totalPacientes24m, objetivoPacientes) * 100,
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              SizedBox(
-                                width: isCompact ? 220 : 260,
-                                child: _buildMetricColumn(
-                                  title: 'Citas últimos 3 meses',
-                                  value: totalCitas3m,
-                                  comparison: 'Completadas: $completadas3m',
-                                  percentage: ratioActividad3 * 100,
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              SizedBox(
-                                width: isCompact ? 220 : 260,
-                                child: _buildMetricColumn(
-                                  title: 'Citas últimos 6 meses',
-                                  value: totalCitas6m,
-                                  comparison: 'Completadas: $completadas6m',
-                                  percentage: ratioActividad6 * 100,
+                          width: 160,
+                          height: 160,
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              PieChart(
+                                PieChartData(
+                                  sectionsSpace: 2,
+                                  centerSpaceRadius: 50,
+                                  startDegreeOffset: -90,
+                                  sections: _buildPieChartSections(
+                                    totalCitas,
+                                    pendientes,
+                                    enRevision,
+                                    enCurso,
+                                    finalizadas,
+                                  ),
+                                  pieTouchData: PieTouchData(
+                                    enabled: false,
+                                  ),
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        const SizedBox(height: 32),
-                        Wrap(
-                          spacing: spacing,
-                          runSpacing: spacing,
-                          children: List.generate(donutConfigs.length, (index) {
-                            final config = donutConfigs[index];
-                            return _buildDonutCard(
-                              title: config.title,
-                              percentage: config.percentage,
-                              value: config.value,
-                              baseValue: config.base,
-                              width: donutWidth,
-                              detailText: config.detail,
-                            );
-                          }),
-                        ),
-                        const SizedBox(height: 32),
-                        _buildLineCard(lineValues),
                         const SizedBox(height: 24),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF1E4EB7),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 24,
-                                vertical: 14,
-                              ),
+                        // Leyenda
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildInteractiveLegendItem(
+                              Colors.blue,
+                              'Pendientes',
+                              'pendientes',
+                              pendientes,
+                              _getStatusIndexMap(pendientes, enRevision, enCurso, finalizadas),
+                              totalCitas,
                             ),
-                            icon: const Icon(Icons.refresh),
-                            label: const Text('Actualizar datos'),
-                            onPressed: () => setState(() {}),
-                          ),
+                            const SizedBox(height: 8),
+                            _buildInteractiveLegendItem(
+                              Colors.purple,
+                              'En revisión',
+                              'enRevision',
+                              enRevision,
+                              _getStatusIndexMap(pendientes, enRevision, enCurso, finalizadas),
+                              totalCitas,
+                            ),
+                            const SizedBox(height: 8),
+                            _buildInteractiveLegendItem(
+                              Colors.green,
+                              'En curso',
+                              'enCurso',
+                              enCurso,
+                              _getStatusIndexMap(pendientes, enRevision, enCurso, finalizadas),
+                              totalCitas,
+                            ),
+                            const SizedBox(height: 8),
+                            _buildInteractiveLegendItem(
+                              Colors.orange,
+                              'Finalizadas',
+                              'finalizadas',
+                              finalizadas,
+                              _getStatusIndexMap(pendientes, enRevision, enCurso, finalizadas),
+                              totalCitas,
                         ),
                       ],
                     ),
-                  ),
-                ),
-              );
+                      ],
+                    )
+                  : Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // Gráfica de dona a la izquierda (más pequeña)
+                        RepaintBoundary(
+                          child: SizedBox(
+                            width: 140,
+                            height: 140,
+                            child: PieChart(
+                              PieChartData(
+                                sectionsSpace: 2,
+                                centerSpaceRadius: 45,
+                                startDegreeOffset: -90,
+                                sections: _buildPieChartSections(
+                                  totalCitas,
+                                  pendientes,
+                                  enRevision,
+                                  enCurso,
+                                  finalizadas,
+                                ),
+                                pieTouchData: PieTouchData(
+                                  enabled: false,
+                                ),
+                                centerSpaceColor: Colors.white,
+                              ),
+                              swapAnimationDuration: const Duration(milliseconds: 300),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 32),
+                        // Leyenda a la derecha
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _buildInteractiveLegendItem(
+                              Colors.blue,
+                              'Pendientes',
+                              'pendientes',
+                              pendientes,
+                              _getStatusIndexMap(pendientes, enRevision, enCurso, finalizadas),
+                              totalCitas,
+                            ),
+                            const SizedBox(height: 8),
+                            _buildInteractiveLegendItem(
+                              Colors.purple,
+                              'En revisión',
+                              'enRevision',
+                              enRevision,
+                              _getStatusIndexMap(pendientes, enRevision, enCurso, finalizadas),
+                              totalCitas,
+                            ),
+                            const SizedBox(height: 8),
+                            _buildInteractiveLegendItem(
+                              Colors.green,
+                              'En curso',
+                              'enCurso',
+                              enCurso,
+                              _getStatusIndexMap(pendientes, enRevision, enCurso, finalizadas),
+                              totalCitas,
+                            ),
+                            const SizedBox(height: 8),
+                            _buildInteractiveLegendItem(
+                              Colors.orange,
+                              'Finalizadas',
+                              'finalizadas',
+                              finalizadas,
+                              _getStatusIndexMap(pendientes, enRevision, enCurso, finalizadas),
+                              totalCitas,
+                            ),
+                          ],
+                        ),
+                      ],
+                    );
             },
-          );
-        },
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildMetricColumn({
-    required String title,
-    required int value,
-    required String comparison,
-    required double percentage,
-  }) {
-    final percentText = '${percentage.toStringAsFixed(2)}%';
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE0E4EC)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha((0.03 * 255).round()),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title,
-                    style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF0C0F1A))),
-                const SizedBox(height: 6),
-                Text(
-                  'Diferencia porcentual',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Text(
-                      percentText,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF16A34A),
+  // Widget para item de leyenda interactivo
+  Widget _buildInteractiveLegendItem(
+    Color color,
+    String label,
+    String statusKey,
+    int count,
+    Map<String, int> statusIndexMap,
+    int totalCitas,
+  ) {
+    if (count == 0) {
+      return const SizedBox.shrink(); // No mostrar si no hay citas
+    }
+    
+    final index = statusIndexMap[statusKey];
+    final isHighlighted = touchedIndex == index;
+    final percentage = totalCitas > 0 
+        ? (count / totalCitas * 100).toStringAsFixed(0)
+        : '0';
+    
+    return RepaintBoundary(
+      child: MouseRegion(
+        onEnter: (_) {
+          if (touchedIndex != index) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                setState(() {
+                  touchedIndex = index;
+                });
+              }
+            });
+          }
+        },
+        onExit: (_) {
+          if (touchedIndex == index) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                setState(() {
+                  touchedIndex = null;
+                });
+              }
+            });
+          }
+        },
+        cursor: SystemMouseCursors.click,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 16,
+                height: 16,
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(4),
+                  boxShadow: [
+                    if (isHighlighted)
+                      BoxShadow(
+                        color: color.withValues(alpha: 0.3),
+                        blurRadius: 4,
+                        spreadRadius: 1,
                       ),
-                    ),
-                    const SizedBox(width: 4),
-                    const Icon(Icons.arrow_upward, size: 14, color: Color(0xFF16A34A)),
                   ],
                 ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                value.toString(),
-                style: const TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(width: 12),
               Text(
-                comparison,
+                '$label: $count ($percentage%)',
                 style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade600,
+                  color: isHighlighted ? color : Colors.black87,
+                  fontSize: 14,
+                  fontWeight: isHighlighted ? FontWeight.w600 : FontWeight.normal,
                 ),
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+
+  // Widget para actividad reciente
+  Widget _buildRecentActivityCard(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> citas,
+  ) {
+    // Obtener las últimas 5 citas ordenadas por fecha
+    final sortedCitas = citas.map((doc) {
+      final data = doc.data();
+      final fecha = _parseDate(data['appointmentDate'] ?? data['fechaHora']) ?? DateTime.now();
+      return {'doc': doc, 'fecha': fecha};
+    }).toList()
+      ..sort((a, b) => (b['fecha'] as DateTime).compareTo(a['fecha'] as DateTime));
+
+    final recentCitas = sortedCitas.take(5).toList();
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+          const Text(
+            'Actividad reciente',
+                  style: TextStyle(
+              color: Colors.black87,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+                  ),
+                ),
+          const SizedBox(height: 8),
+                    Text(
+            'Mantente al día de lo que está pasando',
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(height: 20),
+          if (recentCitas.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                'No hay actividad reciente',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+            )
+          else
+            ...recentCitas.map((item) {
+              final doc = item['doc'] as QueryDocumentSnapshot<Map<String, dynamic>>;
+              final data = doc.data();
+              final fecha = item['fecha'] as DateTime;
+              final nombre = data['patientName'] ?? 'Paciente';
+              final status = data['status'] ?? '';
+              final iniciales = nombre.toString().split(' ').where((n) => n.isNotEmpty).map((n) => n[0]).take(2).join().toUpperCase();
+              
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 20,
+                      backgroundColor: _getStatusColor(status).withValues(alpha: 0.1),
+                      child: Text(
+                        iniciales.isNotEmpty ? iniciales : 'P',
+                        style: TextStyle(
+                          color: _getStatusColor(status),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                            '$nombre ${_getActionText(status)}',
+                style: const TextStyle(
+                              color: Colors.black87,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                            _formatTimeAgo(fecha),
+                style: TextStyle(
+                              color: Colors.grey[600],
+                  fontSize: 12,
+                ),
+              ),
+            ],
+                      ),
+          ),
+                  ],
+                ),
+              );
+            }),
         ],
       ),
     );
   }
 
-  Widget _buildDonutCard({
-    required String title,
-    required double percentage,
-    required int value,
-    required int baseValue,
-    required double width,
-    required String detailText,
-  }) {
-    double clampDouble(double value, double min, double max) {
-      if (value < min) return min;
-      if (value > max) return max;
-      return value;
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'completed':
+      case 'completada':
+      case 'finalizada':
+        return Colors.orange;
+      case 'en revisión':
+      case 'review':
+        return Colors.purple;
+      case 'en curso':
+      case 'in progress':
+        return Colors.green;
+      default:
+        return Colors.blue;
     }
+  }
 
-    final normalized =
-        baseValue <= 0 ? 0.0 : (percentage.isNaN ? 0.0 : percentage.clamp(0, 100));
-    final ratio = normalized / 100;
+  String _getActionText(String status) {
+    switch (status.toLowerCase()) {
+      case 'completed':
+      case 'completada':
+      case 'finalizada':
+        return 'completó una cita';
+      case 'en revisión':
+      case 'review':
+        return 'tiene una cita en revisión';
+      case 'en curso':
+      case 'in progress':
+        return 'tiene una cita en curso';
+      default:
+        return 'tiene una cita pendiente';
+    }
+  }
 
-    final availableWidth = width - 36; // padding horizontal aprox.
-    final chartSize = clampDouble(availableWidth * 0.55, 80, 120);
-    final ringRadius = clampDouble(chartSize / 2 - 4, 24, chartSize / 2);
-    final centerRadius = clampDouble(ringRadius - 14, 14, ringRadius - 4);
+  String _formatTimeAgo(DateTime fecha) {
+    final now = DateTime.now();
+    final difference = now.difference(fecha);
 
-    return SizedBox(
-      width: width,
-      child: TweenAnimationBuilder<double>(
-        tween: Tween(begin: 0, end: ratio),
-        duration: const Duration(milliseconds: 900),
-        curve: Curves.easeOutCubic,
-        builder: (context, animatedRatio, _) {
-          final displayPercent = (animatedRatio * 100).clamp(0, 100);
-          final remaining = (1 - animatedRatio).clamp(0.001, 1.0);
+    if (difference.inDays > 7) {
+      return 'Hace ${difference.inDays} días';
+    } else if (difference.inDays > 0) {
+      return 'Hace ${difference.inDays} día${difference.inDays > 1 ? 's' : ''}';
+    } else if (difference.inHours > 0) {
+      return 'Hace ${difference.inHours} hora${difference.inHours > 1 ? 's' : ''}';
+    } else if (difference.inMinutes > 0) {
+      return 'Hace ${difference.inMinutes} minuto${difference.inMinutes > 1 ? 's' : ''}';
+    } else {
+      return 'Hace unos momentos';
+    }
+  }
 
-          return Tooltip(
-            message: detailText,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.black.withAlpha(220),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            textStyle: const TextStyle(color: Colors.white, fontSize: 13),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+  // Gráfica de citas por mes (Barra)
+  Widget _buildMonthlyAppointmentsCard(List<QueryDocumentSnapshot> citas) {
+    try {
+      // Contar citas por mes (últimos 6 meses)
+      final now = DateTime.now();
+      final monthKeys = <String>[];
+      final monthNames = <String>[];
+      final monthCounts = <String, int>{};
+
+      // Inicializar los últimos 6 meses
+      for (int i = 5; i >= 0; i--) {
+        final date = DateTime(now.year, now.month - i, 1);
+        final monthKey = '${date.year}-${date.month.toString().padLeft(2, '0')}';
+        final monthName = _getMonthName(date.month);
+        monthKeys.add(monthKey);
+        monthNames.add(monthName);
+        monthCounts[monthKey] = 0;
+      }
+
+      // Contar citas por mes
+      for (var cita in citas) {
+        try {
+          final data = cita.data() as Map<String, dynamic>?;
+          if (data == null) continue;
+          final fechaData = data['appointmentDate'] ?? data['fechaHora'] ?? data['fecha'];
+          if (fechaData != null) {
+            final fecha = _parseDate(fechaData);
+            if (fecha != null) {
+              final monthKey = '${fecha.year}-${fecha.month.toString().padLeft(2, '0')}';
+              if (monthCounts.containsKey(monthKey)) {
+                monthCounts[monthKey] = (monthCounts[monthKey] ?? 0) + 1;
+              }
+            }
+          }
+        } catch (e) {
+          // Continuar con la siguiente cita si hay error
+          continue;
+        }
+      }
+
+      final maxCount = monthCounts.values.isNotEmpty 
+          ? monthCounts.values.reduce((a, b) => a > b ? a : b).toDouble()
+          : 10.0;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE0E4EC)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF0C0F1A),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
+          Row(
+            children: [
+              Icon(Icons.bar_chart, color: Colors.blue[700], size: 24),
+              const SizedBox(width: 12),
+              const Text(
+                'Citas por Mes',
+                style: TextStyle(
+                  color: Colors.black87,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
                   SizedBox(
-                    height: chartSize,
-                    child: PieChart(
-                      PieChartData(
-                        sectionsSpace: 3,
-                        centerSpaceRadius: centerRadius,
-                        startDegreeOffset: -90,
-                        sections: [
-                          PieChartSectionData(
-                            value: animatedRatio <= 0 ? 0.001 : animatedRatio,
-                            color: const Color(0xFF6AC3FF),
-                            showTitle: false,
-                            radius: ringRadius,
-                          ),
-                          PieChartSectionData(
-                            value: remaining,
-                            color: const Color(0xFFE6E8EC),
-                            showTitle: false,
-                            radius: ringRadius,
+            height: 250,
+            child: BarChart(
+              BarChartData(
+                alignment: BarChartAlignment.spaceAround,
+                maxY: maxCount > 0 ? maxCount + 2 : 10,
+                barTouchData: BarTouchData(
+                  enabled: true,
+                  touchTooltipData: BarTouchTooltipData(
+                    getTooltipColor: (group) => Colors.blueGrey,
+                    tooltipPadding: const EdgeInsets.all(8),
+                    tooltipMargin: 8,
+                    getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                      return BarTooltipItem(
+                        '${monthNames[group.x.toInt()]}\n',
+                        const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                        children: <TextSpan>[
+                          TextSpan(
+                            text: '${rod.toY.toInt()} citas',
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w400,
+                            ),
                           ),
                         ],
-                      ),
-                    ),
+                      );
+                    },
                   ),
-                  Center(
+                ),
+                titlesData: FlTitlesData(
+                  show: true,
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      getTitlesWidget: (value, meta) {
+                        if (value.toInt() >= 0 && value.toInt() < monthNames.length) {
+                          final monthName = monthNames[value.toInt()];
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
                     child: Text(
-                      '${displayPercent.toStringAsFixed(2)}%',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
+                              monthName.substring(0, 3), // Solo las primeras 3 letras
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 12,
+                              ),
+                            ),
+                          );
+                        }
+                        return const Text('');
+                      },
                     ),
                   ),
-                ],
-              ),
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 40,
+                      getTitlesWidget: (value, meta) {
+                        if (value == meta.max || value == meta.min) {
+                          return Container();
+                        }
+                        return Text(
+                          value.toInt().toString(),
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 12,
             ),
           );
         },
       ),
-    );
-  }
-
-  Widget _buildLineCard(List<int> values) {
-    if (values.every((element) => element == 0)) {
+                  ),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                ),
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  horizontalInterval: 1,
+                  getDrawingHorizontalLine: (value) {
+                    return FlLine(
+                      color: Colors.grey[200],
+                      strokeWidth: 1,
+                    );
+                  },
+                ),
+                borderData: FlBorderData(
+                  show: false,
+                ),
+                barGroups: List.generate(monthNames.length, (index) {
+                  final monthKey = monthKeys[index];
+                  final count = monthCounts[monthKey] ?? 0;
+                  return BarChartGroupData(
+                    x: index,
+                    barRods: [
+                      BarChartRodData(
+                        toY: count.toDouble(),
+                        color: Colors.blue,
+                        width: 16,
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(4),
+                        ),
+                      ),
+                    ],
+                  );
+                }),
+              ),
+            ),
+          ),
+        ],
+        ),
+      );
+    } catch (e) {
+      // Si hay error, mostrar mensaje
       return Container(
-        width: double.infinity,
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFE0E4EC)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
-        child: const Text(
-          'Sin actividad en los últimos 30 días',
-          style: TextStyle(color: Color(0xFF0C0F1A)),
+        child: Center(
+          child: Text(
+            'Error al cargar gráfica',
+            style: TextStyle(color: Colors.grey[600]),
+          ),
         ),
       );
     }
+  }
 
-    final chartSpots = List.generate(
-      values.length,
-      (i) => FlSpot(i.toDouble(), values[i].toDouble()),
-    );
+  // Gráfica de completadas vs canceladas (Pastel)
+  Widget _buildCompletionStatusCard(List<QueryDocumentSnapshot> citas) {
+    try {
+      int completadas = 0;
+    int canceladas = 0;
+    int enProceso = 0;
 
-    double maxY = values.reduce((a, b) => a > b ? a : b).toDouble();
-    if (maxY < 1) maxY = 1;
+    for (var cita in citas) {
+      final data = cita.data() as Map<String, dynamic>;
+      final status = (data['status'] ?? '').toString().toLowerCase();
+      
+      if (status.contains('finalizada') || status.contains('completed')) {
+        completadas++;
+      } else if (status.contains('cancelada') || status.contains('cancelled')) {
+        canceladas++;
+      } else {
+        enProceso++;
+      }
+    }
+
+    final total = completadas + canceladas + enProceso;
+    final porcentajeCompletadas = total > 0 ? (completadas / total * 100).toDouble() : 0.0;
+    final porcentajeCanceladas = total > 0 ? (canceladas / total * 100).toDouble() : 0.0;
+    final porcentajeEnProceso = total > 0 ? (enProceso / total * 100).toDouble() : 0.0;
 
     return Container(
-      width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE0E4EC)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            children: [
+              Icon(Icons.pie_chart, color: Colors.green[700], size: 24),
+              const SizedBox(width: 12),
           const Text(
-            'Tendencia de citas (30 días)',
+                'Estado de Citas',
             style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 220,
-            child: LineChart(
-              LineChartData(
-                minY: 0,
-                maxY: maxY,
-                titlesData: const FlTitlesData(
-                  show: false,
+                  color: Colors.black87,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
                 ),
-                gridData: FlGridData(
-                  drawVerticalLine: false,
-                  getDrawingHorizontalLine: (value) => FlLine(
-                    color: Colors.grey.withAlpha((0.2 * 255).round()),
-                    strokeWidth: 1,
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          if (total == 0)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(40),
+                child: Text(
+                  'No hay datos disponibles',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 14,
                   ),
                 ),
-                borderData: FlBorderData(show: false),
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: chartSpots,
-                    isCurved: true,
-                    barWidth: 3,
-                    color: const Color(0xFF4B7BEC),
-                    dotData: const FlDotData(show: false),
-                    aboveBarData: BarAreaData(show: false),
-                    belowBarData: BarAreaData(
-                      show: true,
-                      color: const Color(0xFF4B7BEC).withAlpha((0.15 * 255).round()),
+              ),
+            )
+          else
+            Row(
+              children: [
+                // Gráfica de pastel
+          SizedBox(
+                  width: 150,
+                  height: 150,
+                  child: PieChart(
+                    PieChartData(
+                      sectionsSpace: 2,
+                      centerSpaceRadius: 40,
+                      sections: [
+                        if (completadas > 0)
+                          PieChartSectionData(
+                            value: completadas.toDouble(),
+                            color: Colors.green,
+                            title: '${porcentajeCompletadas.toStringAsFixed(0)}%',
+                            radius: 50,
+                            titleStyle: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        if (canceladas > 0)
+                          PieChartSectionData(
+                            value: canceladas.toDouble(),
+                            color: Colors.red,
+                            title: '${porcentajeCanceladas.toStringAsFixed(0)}%',
+                            radius: 50,
+                            titleStyle: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        if (enProceso > 0)
+                          PieChartSectionData(
+                            value: enProceso.toDouble(),
+                            color: Colors.amber,
+                            title: '${porcentajeEnProceso.toStringAsFixed(0)}%',
+                            radius: 50,
+                            titleStyle: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
                     ),
                   ),
                 ],
               ),
             ),
+                ),
+                const SizedBox(width: 32),
+                // Leyenda
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (completadas > 0)
+                        _buildLegendRow(
+                          Colors.green,
+                          'Completadas',
+                          completadas,
+                          porcentajeCompletadas,
+                        ),
+                      if (completadas > 0 && (canceladas > 0 || enProceso > 0))
+                        const SizedBox(height: 12),
+                      if (canceladas > 0)
+                        _buildLegendRow(
+                          Colors.red,
+                          'Canceladas',
+                          canceladas,
+                          porcentajeCanceladas,
+                        ),
+                      if (canceladas > 0 && enProceso > 0)
+                        const SizedBox(height: 12),
+                      if (enProceso > 0)
+                        _buildLegendRow(
+                          Colors.amber,
+                          'En Proceso',
+                          enProceso,
+                          porcentajeEnProceso,
+                        ),
+                    ],
+                  ),
+                ),
+              ],
           ),
         ],
       ),
     );
+    } catch (e) {
+      // Si hay error, mostrar mensaje
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Center(
+          child: Text(
+            'Error al cargar gráfica',
+            style: TextStyle(color: Colors.grey[600]),
+          ),
+        ),
+      );
+    }
+  }
+
+  Widget _buildLegendRow(Color color, String label, int count, double percentage) {
+    return Row(
+      children: [
+        Container(
+          width: 16,
+          height: 16,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.black87,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Text(
+                '$count citas (${percentage.toStringAsFixed(1)}%)',
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _getMonthName(int month) {
+    const monthNames = [
+      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    ];
+    return monthNames[month - 1];
   }
 }
-
-class _DonutConfig {
-  final String title;
-  final double percentage;
-  final int value;
-  final int base;
-  final String detail;
-
-  const _DonutConfig({
-    required this.title,
-    required this.percentage,
-    required this.value,
-    required this.base,
-    required this.detail,
-  });
-}
-

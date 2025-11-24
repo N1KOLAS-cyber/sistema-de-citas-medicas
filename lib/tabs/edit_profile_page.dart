@@ -93,13 +93,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
     setState(() => _loading = true);
 
     try {
-      // Validar que se haya seleccionado un rol
-      if (_selectedRole == null || _selectedRole!.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Por favor selecciona un rol")),
-        );
-        return;
-      }
+      // Obtener el rol actual del usuario (no se puede cambiar)
+      final String currentRole = _selectedRole ?? 'Paciente';
 
       Map<String, dynamic> updateData = {
         'name': nombreController.text.trim(),
@@ -112,12 +107,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
         'email': user.email,
         'id': user.uid,
         'updatedAt': DateTime.now().millisecondsSinceEpoch,
-        'role': _selectedRole,
-        'isDoctor': _selectedRole == 'Médico',
+        'role': currentRole,
+        'isDoctor': currentRole == 'Médico',
       };
 
       // Si es doctor, actualizar campos adicionales
-      if (_selectedRole == 'Médico') {
+      if (currentRole == 'Médico') {
         updateData['specialty'] = especialidadController.text.trim();
         updateData['licenseNumber'] = licenciaController.text.trim();
       }
@@ -276,30 +271,19 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Selector de rol
-                  DropdownButtonFormField<String>(
-                    initialValue: _selectedRole,
+                  // Rol (solo lectura - no se puede cambiar)
+                  TextFormField(
+                    initialValue: _selectedRole ?? 'Paciente',
                     decoration: const InputDecoration(
                       labelText: 'Rol',
                       prefixIcon: Icon(Icons.person_outline),
                       border: OutlineInputBorder(),
-                      helperText: 'Selecciona tu rol en el sistema',
+                      helperText: 'El rol no se puede modificar',
+                      filled: true,
+                      fillColor: Colors.grey,
                     ),
-                    items: const [
-                      DropdownMenuItem(
-                        value: "Paciente",
-                        child: Text("Paciente"),
-                      ),
-                      DropdownMenuItem(
-                        value: "Médico",
-                        child: Text("Médico"),
-                      ),
-                    ],
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedRole = value;
-                      });
-                    },
+                    enabled: false,
+                    style: const TextStyle(color: Colors.black87),
                   ),
                   const SizedBox(height: 16),
 
